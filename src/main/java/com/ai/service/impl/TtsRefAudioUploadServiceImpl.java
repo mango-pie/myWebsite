@@ -6,7 +6,9 @@ import cn.hutool.core.util.StrUtil;
 import com.ai.config.GptSovitsProperties;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
+import com.ai.service.IntegrationCredentialsService;
 import com.ai.service.TtsRefAudioUploadService;
+import com.ai.setting.runtime.TtsRuntimeSettings;
 import com.ai.utils.TtsPathUtils;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,12 @@ public class TtsRefAudioUploadServiceImpl implements TtsRefAudioUploadService {
     @Resource
     private GptSovitsProperties gptSovitsProperties;
 
+    @Resource
+    private IntegrationCredentialsService credentials;
+
+    @Resource
+    private TtsRuntimeSettings ttsRuntimeSettings;
+
     @Override
     public String saveRefAudio(MultipartFile file, Long voiceId) {
         if (file == null || file.isEmpty()) {
@@ -34,9 +42,10 @@ public class TtsRefAudioUploadServiceImpl implements TtsRefAudioUploadService {
         }
 
         GptSovitsProperties.RefAudio config = gptSovitsProperties.getRefAudio();
-        long maxBytes = config.getMaxSizeMb() * 1024L * 1024L;
+        int maxSizeMb = ttsRuntimeSettings.refAudioMaxSizeMb();
+        long maxBytes = maxSizeMb * 1024L * 1024L;
         if (file.getSize() > maxBytes) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小不能超过 " + config.getMaxSizeMb() + "MB");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小不能超过 " + maxSizeMb + "MB");
         }
 
         String original = file.getOriginalFilename();
@@ -51,7 +60,7 @@ public class TtsRefAudioUploadServiceImpl implements TtsRefAudioUploadService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "仅支持: " + config.getAllowedExt());
         }
 
-        String dir = config.getUploadDir();
+        String dir = credentials.ttsRefAudioUploadDir();
         if (!dir.endsWith("/") && !dir.endsWith("\\")) {
             dir = dir + File.separator;
         }

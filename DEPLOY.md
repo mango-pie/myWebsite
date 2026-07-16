@@ -18,6 +18,15 @@
 | 环境变量模板 | [deploy/env/ai-backend.env.example](deploy/env/ai-backend.env.example) |
 | SQL 脚本 | [src/main/resources/sql/](src/main/resources/sql/) |
 
+运维可观测 Phase A～D 需额外执行（若尚未建表）：
+
+- `src/main/resources/sql/ai_usage_log_schema.sql`
+- `src/main/resources/sql/ops_audit_log_schema.sql`
+- `src/main/resources/sql/biz_stat_daily_schema.sql`
+- `src/main/resources/sql/http_access_log_schema.sql`
+
+联调文档：[`docs/ops-observability/`](docs/ops-observability/README.md) 下 `FRONTEND_SYNC_A`～`D`。
+
 ## 本地开发
 
 ```bash

@@ -1,10 +1,9 @@
 package com.ai.service.impl;
 
-import com.ai.config.ChatAttachmentProperties;
-import com.ai.config.ChatImageCaptionProperties;
 import com.ai.exception.BusinessException;
 import com.ai.model.dto.chat.ChatMessageSegment;
 import com.ai.service.ChatImageCaptionService;
+import com.ai.setting.runtime.ChatRuntimeSettings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -29,10 +28,10 @@ class ChatAttachmentServiceImplTest {
     void setUp() {
         service = new ChatAttachmentServiceImpl();
         captionService = mock(ChatImageCaptionService.class);
-        ChatAttachmentProperties attachmentProperties = new ChatAttachmentProperties();
-        attachmentProperties.setAttachmentCacheTtlMinutes(120);
+        ChatRuntimeSettings chatRuntimeSettings = mock(ChatRuntimeSettings.class);
+        when(chatRuntimeSettings.attachmentCacheTtlMinutes()).thenReturn(120);
         ReflectionTestUtils.setField(service, "chatImageCaptionService", captionService);
-        ReflectionTestUtils.setField(service, "chatAttachmentProperties", attachmentProperties);
+        ReflectionTestUtils.setField(service, "chatRuntimeSettings", chatRuntimeSettings);
         service.initCache();
     }
 

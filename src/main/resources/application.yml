@@ -5,8 +5,8 @@ spring:
     name: scene-ai-code-backend
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      max-file-size: 50MB
+      max-request-size: 50MB
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/aiscene?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
@@ -16,7 +16,7 @@ spring:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6381}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:}  l,.o  
       ttl: 86400
   session:
     store-type: none
@@ -131,6 +131,50 @@ astrbot:
   connect-timeout-ms: 5000
   read-timeout-ms: 300000
 
+knowledge:
+  minio:
+    enabled: ${KNOWLEDGE_MINIO_ENABLED:true}
+    endpoint: ${KNOWLEDGE_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${KNOWLEDGE_MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${KNOWLEDGE_MINIO_SECRET_KEY:minioadmin}
+    bucket-documents: ${KNOWLEDGE_MINIO_BUCKET_DOCUMENTS:knowledge-documents}
+    presign-expire-seconds: ${KNOWLEDGE_MINIO_PRESIGN_EXPIRE_SECONDS:3600}
+  vector:
+    datasource:
+      url: ${KNOWLEDGE_VECTOR_DB_URL:jdbc:postgresql://localhost:5432/knowledge_ai}
+      username: ${KNOWLEDGE_VECTOR_DB_USERNAME:kai}
+      password: ${KNOWLEDGE_VECTOR_DB_PASSWORD:kai123}
+  ai:
+    base-url: ${KNOWLEDGE_AI_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    api-key: ${KNOWLEDGE_AI_API_KEY:}
+    chat-model: ${KNOWLEDGE_AI_CHAT_MODEL:deepseek-v3}
+    embedding-model: ${KNOWLEDGE_AI_EMBEDDING_MODEL:text-embedding-v2}
+    embedding-dimension: ${KNOWLEDGE_AI_EMBEDDING_DIMENSION:1536}
+    temperature: ${KNOWLEDGE_AI_TEMPERATURE:0.2}
+    max-tokens: ${KNOWLEDGE_AI_MAX_TOKENS:2048}
+    timeout-seconds: ${KNOWLEDGE_AI_TIMEOUT_SECONDS:120}
+  jina:
+    base-url: ${KNOWLEDGE_JINA_BASE_URL:https://r.jina.ai/}
+    timeout-seconds: ${KNOWLEDGE_JINA_TIMEOUT_SECONDS:30}
+  tavily:
+    api-key: ${KNOWLEDGE_TAVILY_API_KEY:}
+    base-url: ${KNOWLEDGE_TAVILY_BASE_URL:https://api.tavily.com}
+    max-results: ${KNOWLEDGE_TAVILY_MAX_RESULTS:5}
+    timeout-seconds: ${KNOWLEDGE_TAVILY_TIMEOUT_SECONDS:30}
+  deepseek:
+    api-key: ${KNOWLEDGE_DEEPSEEK_API_KEY:}
+    base-url: ${KNOWLEDGE_DEEPSEEK_BASE_URL:https://api.deepseek.com/anthropic}
+    model: ${KNOWLEDGE_DEEPSEEK_MODEL:deepseek-v4-pro}
+    search-model: ${KNOWLEDGE_DEEPSEEK_SEARCH_MODEL:deepseek-v4-flash}
+    reading-model: ${KNOWLEDGE_DEEPSEEK_READING_MODEL:deepseek-v4-flash}
+    distill-model: ${KNOWLEDGE_DEEPSEEK_DISTILL_MODEL:deepseek-v4-pro}
+    max-results: ${KNOWLEDGE_DEEPSEEK_MAX_RESULTS:8}
+    timeout-seconds: ${KNOWLEDGE_DEEPSEEK_TIMEOUT_SECONDS:120}
+  rag:
+    top-k: ${KNOWLEDGE_RAG_TOP_K:5}
+    chunk-size: ${KNOWLEDGE_RAG_CHUNK_SIZE:1200}
+    chunk-overlap: ${KNOWLEDGE_RAG_CHUNK_OVERLAP:150}
+
 app:
   redis:
     mode: auto
@@ -139,3 +183,7 @@ app:
     host: ${APP_DEPLOY_HOST:http://localhost}
     code-output-dir: ${APP_CODE_OUTPUT_DIR:}
     code-deploy-dir: ${APP_CODE_DEPLOY_DIR:}
+
+# 全站设置敏感字段加密主密钥（勿写入 DB；生产务必通过环境变量覆盖）
+site-setting:
+  crypto-secret: ${SITE_SETTING_CRYPTO_SECRET:}

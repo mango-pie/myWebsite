@@ -1,13 +1,13 @@
 package com.ai.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.ai.config.ChatAttachmentProperties;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.model.dto.chat.ChatMessageSegment;
 import com.ai.model.vo.chat.ChatAttachmentVO;
 import com.ai.service.ChatAttachmentService;
 import com.ai.service.ChatImageCaptionService;
+import com.ai.setting.runtime.ChatRuntimeSettings;
 import com.ai.utils.ChatMessageUtils;
 import com.ai.utils.ImageUploadUtil;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -32,13 +32,18 @@ public class ChatAttachmentServiceImpl implements ChatAttachmentService {
     private ChatImageCaptionService chatImageCaptionService;
 
     @Resource
-    private ChatAttachmentProperties chatAttachmentProperties;
+    private ChatRuntimeSettings chatRuntimeSettings;
 
-    private Cache<String, String> captionCache;
+    private volatile Cache<String, String> captionCache;
 
     @PostConstruct
     void initCache() {
-        int ttlMinutes = Math.max(1, chatAttachmentProperties.getAttachmentCacheTtlMinutes());
+        rebuildCaptionCache();
+    }
+
+    @Override
+    public synchronized void rebuildCaptionCache() {
+        int ttlMinutes = Math.max(1, chatRuntimeSettings.attachmentCacheTtlMinutes());
         captionCache = Caffeine.newBuilder()
                 .expireAfterWrite(ttlMinutes, TimeUnit.MINUTES)
                 .maximumSize(10_000)

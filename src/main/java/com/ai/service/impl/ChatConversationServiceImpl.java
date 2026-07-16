@@ -2,6 +2,7 @@ package com.ai.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.ai.constant.BizStatMetricConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.mapper.ChatConversationMapper;
@@ -9,6 +10,7 @@ import com.ai.model.entity.ChatConversation;
 import com.ai.model.vo.chat.ChatConfigVO;
 import com.ai.model.vo.chat.ChatConversationVO;
 import com.ai.service.AstrBotChatService;
+import com.ai.service.BizStatDailyService;
 import com.ai.service.ChatConversationService;
 import com.ai.service.ChatMessageService;
 import com.ai.utils.ChatSessionUtils;
@@ -33,6 +35,9 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
     @Resource
     private ChatMessageService chatMessageService;
 
+    @Resource
+    private BizStatDailyService bizStatDailyService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ChatConversationVO resolveDefault(Long userId, String configId) {
@@ -49,6 +54,7 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
     public ChatConversationVO createConversation(Long userId, String configId, String title) {
         String effectiveConfigId = normalizeConfigId(configId);
         ChatConversation conversation = insertConversation(userId, effectiveConfigId, title, false);
+        bizStatDailyService.increment(BizStatMetricConstant.CHAT_CONVERSATION_CREATE, 1);
         return toVO(conversation, true);
     }
 

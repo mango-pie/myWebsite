@@ -19,4 +19,9 @@ public interface ChatAttachmentService {
     String buildPlainMessageForAstrBot(String message, List<ChatMessageSegment> segments);
 
     boolean hasImageSegments(List<ChatMessageSegment> segments);
+
+    /**
+     * 附件 caption 缓存 TTL 变更后重建。
+     */
+    void rebuildCaptionCache();
 }

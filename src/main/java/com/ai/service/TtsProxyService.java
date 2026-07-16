@@ -11,4 +11,8 @@ public interface TtsProxyService {
     void preloadReferAudio(String refAudioPath);
 
     byte[] synthesize(String text, TtsVoiceProfile voice, Map<String, Object> extra);
+
+    /** 超时等设置变更后失效 HTTP 客户端缓存。 */
+    default void invalidateClient() {
+    }
 }

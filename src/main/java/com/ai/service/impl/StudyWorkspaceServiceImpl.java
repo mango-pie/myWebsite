@@ -9,6 +9,7 @@ import com.ai.service.StudyListService;
 import com.ai.service.StudyRedisCacheService;
 import com.ai.service.StudyStatsService;
 import com.ai.service.StudyWorkspaceService;
+import com.ai.setting.runtime.StudyRuntimeSettings;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,9 @@ public class StudyWorkspaceServiceImpl implements StudyWorkspaceService {
 
     @Resource
     private StudyRedisCacheService studyRedisCacheService;
+
+    @Resource
+    private StudyRuntimeSettings studyRuntimeSettings;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -49,6 +53,7 @@ public class StudyWorkspaceServiceImpl implements StudyWorkspaceService {
         vo.setLists(studyListService.getAllLists(userId));
         vo.setTodayStats(todayStats);
         vo.setActiveFocus(activeFocus);
+        vo.setShowChecklist(studyRuntimeSettings.workspaceShowChecklist());
         return vo;
     }
 }

@@ -1,14 +1,13 @@
 package com.ai.agent.registry;
 
 import cn.hutool.json.JSONUtil;
-import com.ai.agent.config.ChatAgentProperties;
 import com.ai.agent.context.AgentToolContextHolder;
-import com.ai.agent.model.AgentToolContext;
 import com.ai.agent.model.AgentToolContext;
 import com.ai.agent.model.AgentToolLevel;
 import com.ai.agent.model.AgentToolResult;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
+import com.ai.setting.runtime.ChatRuntimeSettings;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,14 +20,14 @@ public class AgentToolGateway {
     private AgentToolRegistry agentToolRegistry;
 
     @Resource
-    private ChatAgentProperties chatAgentProperties;
+    private ChatRuntimeSettings chatRuntimeSettings;
 
     public AgentToolResult execute(String toolName, String argumentsJson, AgentToolContext context) {
         AgentToolDefinition definition = agentToolRegistry.find(toolName)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PARAMS_ERROR, "未知工具: " + toolName));
 
         if (definition.level() == AgentToolLevel.L2) {
-            if (!chatAgentProperties.isL2Enabled()) {
+            if (!chatRuntimeSettings.agentL2Enabled()) {
                 return AgentToolResult.fail("工具 " + toolName + " 尚未开放（L2 需用户确认，二期实现）");
             }
         }

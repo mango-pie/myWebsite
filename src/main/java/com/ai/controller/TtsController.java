@@ -4,7 +4,6 @@ import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
 import com.ai.common.DeleteRequest;
 import com.ai.common.ResultUtils;
-import com.ai.config.GptSovitsProperties;
 import com.ai.constant.UserConstant;
 import com.ai.exception.ErrorCode;
 import com.ai.exception.ThrowUtils;
@@ -15,8 +14,10 @@ import com.ai.model.entity.TtsVoiceProfile;
 import com.ai.model.vo.tts.TtsConfigVO;
 import com.ai.model.vo.tts.TtsHealthVO;
 import com.ai.model.vo.tts.TtsVoiceVO;
+import com.ai.service.IntegrationCredentialsService;
 import com.ai.service.TtsProxyService;
 import com.ai.service.TtsVoiceService;
+import com.ai.setting.runtime.TtsRuntimeSettings;
 import jakarta.annotation.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -38,16 +39,25 @@ public class TtsController {
     private TtsVoiceService ttsVoiceService;
 
     @Resource
-    private GptSovitsProperties gptSovitsProperties;
+    private IntegrationCredentialsService integrationCredentialsService;
+
+    @Resource
+    private TtsRuntimeSettings ttsRuntimeSettings;
 
     @GetMapping("/health")
     @AuthCheck(mustRole = UserConstant.ADMINISTRATOR_ROLE)
     public BaseResponse<TtsHealthVO> health() {
         TtsHealthVO vo = new TtsHealthVO();
-        boolean available = ttsProxyService.isAvailable();
+        boolean enabled = ttsRuntimeSettings.enabled();
+        vo.setEnabled(enabled);
+        boolean available = enabled && ttsProxyService.isAvailable();
         vo.setAvailable(available);
-        vo.setBaseUrl(gptSovitsProperties.getBaseUrl());
-        vo.setMessage(available ? "GPT-SoVITS 服务正常" : "GPT-SoVITS 未启动或不可达");
+        vo.setBaseUrl(integrationCredentialsService.ttsBaseUrl());
+        if (!enabled) {
+            vo.setMessage("TTS 已在设置中关闭");
+        } else {
+            vo.setMessage(available ? "GPT-SoVITS 服务正常" : "GPT-SoVITS 未启动或不可达");
+        }
         return ResultUtils.success(vo);
     }
 
@@ -55,7 +65,8 @@ public class TtsController {
     @AuthCheck(mustRole = UserConstant.ADMINISTRATOR_ROLE)
     public BaseResponse<TtsConfigVO> config() {
         TtsConfigVO vo = new TtsConfigVO();
-        vo.setGptSovitsAvailable(ttsProxyService.isAvailable());
+        vo.setEnabled(ttsRuntimeSettings.enabled());
+        vo.setGptSovitsAvailable(ttsRuntimeSettings.enabled() && ttsProxyService.isAvailable());
         vo.setRefPreloaded(ttsVoiceService.isRefPreloaded());
         try {
             TtsVoiceProfile def = ttsVoiceService.getDefaultVoice();
@@ -71,6 +82,7 @@ public class TtsController {
     @PostMapping("/ref/init")
     @AuthCheck(mustRole = UserConstant.ADMINISTRATOR_ROLE)
     public BaseResponse<Boolean> initRef(@RequestParam(required = false) Long voiceId) {
+        requireTtsEnabled();
         ttsVoiceService.initReferAudio(voiceId);
         return ResultUtils.success(true);
     }
@@ -78,6 +90,7 @@ public class TtsController {
     @PostMapping(value = "/synthesize", produces = "audio/wav")
     @AuthCheck(mustRole = UserConstant.ADMINISTRATOR_ROLE)
     public ResponseEntity<byte[]> synthesize(@RequestBody TtsSynthesizeRequest request) {
+        requireTtsEnabled();
         ThrowUtils.throwIf(request == null || request.getText() == null || request.getText().isBlank(),
                 ErrorCode.PARAMS_ERROR);
 
@@ -112,12 +125,14 @@ public class TtsController {
             @RequestParam(value = "promptText", required = false) String promptText,
             @RequestParam(value = "promptLang", required = false) String promptLang,
             @RequestParam(value = "textLang", required = false) String textLang) {
+        requireTtsEnabled();
         return ResultUtils.success(ttsVoiceService.addVoice(file, name, promptText, promptLang, textLang));
     }
 
     @PostMapping("/voice/update")
     @AuthCheck(mustRole = UserConstant.ADMINISTRATOR_ROLE)
     public BaseResponse<Boolean> updateVoice(@RequestBody TtsVoiceUpdateRequest request) {
+        requireTtsEnabled();
         ThrowUtils.throwIf(request == null || request.getId() == null, ErrorCode.PARAMS_ERROR);
         return ResultUtils.success(ttsVoiceService.updateVoice(request));
     }
@@ -125,6 +140,7 @@ public class TtsController {
     @PostMapping("/voice/delete")
     @AuthCheck(mustRole = UserConstant.ADMINISTRATOR_ROLE)
     public BaseResponse<Boolean> deleteVoice(@RequestBody DeleteRequest request) {
+        requireTtsEnabled();
         ThrowUtils.throwIf(request == null || request.getId() == null, ErrorCode.PARAMS_ERROR);
         return ResultUtils.success(ttsVoiceService.deleteVoice(request.getId()));
     }
@@ -132,9 +148,14 @@ public class TtsController {
     @PostMapping("/voice/select")
     @AuthCheck(mustRole = UserConstant.ADMINISTRATOR_ROLE)
     public BaseResponse<Boolean> selectVoice(@RequestBody TtsVoiceSelectRequest request) {
+        requireTtsEnabled();
         ThrowUtils.throwIf(request == null || request.getId() == null, ErrorCode.PARAMS_ERROR);
         ttsVoiceService.selectDefaultVoice(request.getId());
         return ResultUtils.success(true);
+    }
+
+    private void requireTtsEnabled() {
+        ThrowUtils.throwIf(!ttsRuntimeSettings.enabled(), ErrorCode.OPERATION_ERROR, "TTS 已关闭，请在全站设置中开启");
     }
 
     private Map<String, Object> buildSynthesizeExtra(TtsSynthesizeRequest request) {

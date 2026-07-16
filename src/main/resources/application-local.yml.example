@@ -1,5 +1,9 @@
 # 本地开发密钥模板 — 复制为 application-local.yml 后填入真实值（该文件已被 git 忽略）
 
+# 设置中心敏感配置加密（生产必须更换）
+site-setting:
+  crypto-secret: change-me-local-site-setting-crypto
+
 langchain4j:
   open-ai:
     streaming-chat-model:
@@ -16,6 +20,23 @@ chat:
 astrbot:
   base-url: http://your-astrbot-host:6185
   api-key: your-astrbot-api-key
+
+knowledge:
+  ai:
+    api-key: your-dashscope-api-key
+    base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    chat-model: deepseek-v3
+    embedding-model: text-embedding-v2
+  tavily:
+    api-key: your-tavily-api-key
+  deepseek:
+    # DeepSeek 官方 Key（联网搜索），与上面 DashScope knowledge.ai 不是同一个
+    api-key: your-deepseek-official-api-key
+    base-url: https://api.deepseek.com/anthropic
+    model: deepseek-v4-pro
+    search-model: deepseek-v4-flash
+    reading-model: deepseek-v4-flash
+    distill-model: deepseek-v4-pro
 
 spring:
   datasource:

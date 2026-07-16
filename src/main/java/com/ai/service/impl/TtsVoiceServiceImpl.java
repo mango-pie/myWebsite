@@ -9,9 +9,11 @@ import com.ai.mapper.TtsVoiceProfileMapper;
 import com.ai.model.dto.tts.TtsVoiceUpdateRequest;
 import com.ai.model.entity.TtsVoiceProfile;
 import com.ai.model.vo.tts.TtsVoiceVO;
+import com.ai.service.IntegrationCredentialsService;
 import com.ai.service.TtsProxyService;
 import com.ai.service.TtsRefAudioUploadService;
 import com.ai.service.TtsVoiceService;
+import com.ai.setting.runtime.TtsRuntimeSettings;
 import com.ai.utils.TtsPathUtils;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
@@ -35,6 +37,12 @@ public class TtsVoiceServiceImpl extends ServiceImpl<TtsVoiceProfileMapper, TtsV
     private GptSovitsProperties gptSovitsProperties;
 
     @Resource
+    private IntegrationCredentialsService integrationCredentialsService;
+
+    @Resource
+    private TtsRuntimeSettings ttsRuntimeSettings;
+
+    @Resource
     private TtsProxyService ttsProxyService;
 
     @Resource
@@ -48,7 +56,7 @@ public class TtsVoiceServiceImpl extends ServiceImpl<TtsVoiceProfileMapper, TtsV
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void ensureSeedVoice() {
-        if (!gptSovitsProperties.getSeedVoice().isEnabled()) {
+        if (!ttsRuntimeSettings.seedVoiceEnabled()) {
             return;
         }
         long defaultCount = this.count(QueryWrapper.create().where("is_default = ?", 1));
@@ -57,11 +65,12 @@ public class TtsVoiceServiceImpl extends ServiceImpl<TtsVoiceProfileMapper, TtsV
         }
         GptSovitsProperties.SeedVoice seed = gptSovitsProperties.getSeedVoice();
         TtsVoiceProfile profile = new TtsVoiceProfile();
-        profile.setName(seed.getName());
-        profile.setRefAudioPath(TtsPathUtils.normalizePath(seed.getRefAudioPath()));
-        profile.setPromptText(seed.getPromptText());
-        profile.setPromptLang(seed.getPromptLang());
-        profile.setTextLang(seed.getTextLang());
+        profile.setName(ttsRuntimeSettings.seedVoiceName());
+        profile.setRefAudioPath(TtsPathUtils.normalizePath(integrationCredentialsService.ttsSeedRefAudioPath()));
+        profile.setPromptText(StrUtil.blankToDefault(integrationCredentialsService.ttsSeedPromptText(),
+                seed != null ? seed.getPromptText() : ""));
+        profile.setPromptLang(ttsRuntimeSettings.defaultPromptLang());
+        profile.setTextLang(ttsRuntimeSettings.defaultTextLang());
         profile.setIsDefault(1);
         profile.setStatus(1);
         profile.setSortOrder(0);
@@ -116,8 +125,8 @@ public class TtsVoiceServiceImpl extends ServiceImpl<TtsVoiceProfileMapper, TtsV
         profile.setName(name.trim());
         profile.setRefAudioPath(path);
         profile.setPromptText(promptText);
-        profile.setPromptLang(StrUtil.blankToDefault(promptLang, "zh"));
-        profile.setTextLang(StrUtil.blankToDefault(textLang, "zh"));
+        profile.setPromptLang(StrUtil.blankToDefault(promptLang, ttsRuntimeSettings.defaultPromptLang()));
+        profile.setTextLang(StrUtil.blankToDefault(textLang, ttsRuntimeSettings.defaultTextLang()));
         profile.setIsDefault(0);
         profile.setStatus(1);
         profile.setSortOrder(0);
