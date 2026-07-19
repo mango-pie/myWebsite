@@ -15,8 +15,8 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
-      port: ${REDIS_PORT:6381}
-      password: ${REDIS_PASSWORD:}  l,.o  
+      port: ${REDIS_PORT:6380}
+      password: ${REDIS_PASSWORD:}
       ttl: 86400
   session:
     store-type: none
@@ -179,6 +179,16 @@ app:
   redis:
     mode: auto
     ping-timeout-ms: 2000
+  modules:
+    ops: true
+    blog: true
+    knowledge: true
+    reading: true
+    chat: true
+    study: true
+    diary: true
+    tts: true
+    app-lab: true
   deploy:
     host: ${APP_DEPLOY_HOST:http://localhost}
     code-output-dir: ${APP_CODE_OUTPUT_DIR:}

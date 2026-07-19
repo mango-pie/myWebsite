@@ -1,8 +1,10 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
-import com.ai.mapper.OpsAuditLogMapper;
+import com.ai.mapper.ops.OpsAuditLogMapper;
 import com.ai.model.dto.ops.OpsAuditRecord;
 import com.ai.model.entity.OpsAuditLog;
 import com.ai.model.vo.ops.OpsAuditLogVO;
@@ -27,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
+@ConditionalOnModule("ops")
 @Service
 public class OpsAuditLogServiceImpl implements OpsAuditLogService {
 

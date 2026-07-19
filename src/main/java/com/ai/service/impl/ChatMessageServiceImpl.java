@@ -1,11 +1,13 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.BizStatMetricConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.ChatMessageMapper;
+import com.ai.mapper.chat.ChatMessageMapper;
 import com.ai.model.entity.ChatMessage;
 import com.ai.model.enums.ChatMessageSourceEnum;
 import com.ai.model.enums.MessageTypeEnum;
@@ -24,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("chat")
 @Service
 public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatMessage>
         implements ChatMessageService {

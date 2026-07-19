@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.AiUsageSceneConstant;
 import com.ai.constant.BizStatMetricConstant;
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeDistillationServiceImpl implements KnowledgeDistillationService {
 

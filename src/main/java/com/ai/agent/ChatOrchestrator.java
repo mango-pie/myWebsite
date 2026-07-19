@@ -1,5 +1,7 @@
 package com.ai.agent;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.core.AiChatFacade;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -14,6 +16,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 
+@ConditionalOnModule("chat")
 @Service
 public class ChatOrchestrator {
 

@@ -1,5 +1,7 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.AiUsageSceneConstant;
 import com.ai.model.dto.ops.AiUsageRecord;
@@ -20,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
+@ConditionalOnModule("chat")
 @Service
 public class ChatSegmentationServiceImpl implements ChatSegmentationService {
 

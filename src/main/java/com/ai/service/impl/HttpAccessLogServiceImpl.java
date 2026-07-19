@@ -1,7 +1,9 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
-import com.ai.mapper.HttpAccessLogMapper;
+import com.ai.mapper.ops.HttpAccessLogMapper;
 import com.ai.model.entity.HttpAccessLog;
 import com.ai.model.vo.ops.HttpAccessLogVO;
 import com.ai.service.HttpAccessLogService;
@@ -19,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
+@ConditionalOnModule("ops")
 @Service
 public class HttpAccessLogServiceImpl implements HttpAccessLogService {
 

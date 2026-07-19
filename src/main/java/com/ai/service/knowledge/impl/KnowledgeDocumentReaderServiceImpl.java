@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.service.knowledge.KnowledgeDocumentReaderService;
@@ -12,6 +14,7 @@ import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeDocumentReaderServiceImpl implements KnowledgeDocumentReaderService {
 

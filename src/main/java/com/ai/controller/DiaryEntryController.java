@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.common.BaseResponse;
 import com.ai.common.DeleteRequest;
 import com.ai.common.ResultUtils;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@ConditionalOnModule("diary")
 @RestController
 @RequestMapping("/diary")
 public class DiaryEntryController {

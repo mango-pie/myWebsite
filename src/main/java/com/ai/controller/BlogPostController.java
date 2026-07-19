@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
@@ -23,6 +25,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+@ConditionalOnModule("blog")
 @RestController
 @RequestMapping("/blog/post")
 public class BlogPostController {

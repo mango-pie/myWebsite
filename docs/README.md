@@ -9,6 +9,7 @@
 | AI 精读工作台 | [ai-reading-workbench/](./ai-reading-workbench/README.md) |
 | 全站设置中心 | [site-settings/](./site-settings/README.md) |
 | 运维可观测 | [ops-observability/](./ops-observability/README.md) |
+| 模块解耦 | [module-decoupling/](./module-decoupling/00-design-checklist.md) |
 
 ## 文档列表（Knowledge AI 原项目规划）
 

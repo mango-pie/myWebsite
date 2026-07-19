@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.common.BaseResponse;
@@ -27,6 +29,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.List;
 
+@ConditionalOnModule("chat")
 @RestController
 @RequestMapping("/chat")
 public class ChatController {

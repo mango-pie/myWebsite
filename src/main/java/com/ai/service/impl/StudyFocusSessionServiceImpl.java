@@ -1,12 +1,14 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.BizStatMetricConstant;
 import com.ai.constant.StudyConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.StudyFocusSessionMapper;
+import com.ai.mapper.study.StudyFocusSessionMapper;
 import com.ai.model.dto.study.StudyFocusIdRequest;
 import com.ai.model.dto.study.StudyFocusStartRequest;
 import com.ai.model.entity.StudyFocusSession;
@@ -30,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("study")
 @Service
 public class StudyFocusSessionServiceImpl extends ServiceImpl<StudyFocusSessionMapper, StudyFocusSession>
         implements StudyFocusSessionService {

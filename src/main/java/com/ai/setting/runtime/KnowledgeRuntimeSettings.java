@@ -1,5 +1,7 @@
 package com.ai.setting.runtime;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.config.knowledge.KnowledgeAiProperties;
 import com.ai.config.knowledge.KnowledgeJinaProperties;
 import com.ai.config.knowledge.KnowledgeRagProperties;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Component;
 /**
  * knowledge 模块运行时读取：DB 覆盖 YAML Properties。
  */
+@ConditionalOnModule("knowledge")
 @Component
 public class KnowledgeRuntimeSettings {
 

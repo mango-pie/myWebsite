@@ -14,9 +14,11 @@
 | YAML | `knowledge.deepseek.distill-model` | 基于材料重构精读，默认 `deepseek-v4-pro` |
 | `reading.search.provider` | `deepseek`（默认）/ `tavily` / `placeholder` | |
 | `reading.distill.system_prompt` | 控制最终精读结构 | 只作用于「材料拼接后」的重构阶段 |
-| `reading.ingest.sync_mode` | 须 `sync` | |
+| `reading.ingest.sync_mode` | 默认 **`async`**；调试可改 `sync` | |
 
 集成设置也可覆盖 `knowledge.deepseek.api_key`。
+
+**运维**：部署后执行建表 SQL `src/main/resources/sql/knowledge_reading_job_schema.sql`。
 
 ## 2. 搜索候选（步骤 1～2）
 
@@ -53,7 +55,51 @@ POST /api/admin/knowledge/ingest/batch-url
 2. 至少 1 篇可读即继续；
 3. 将材料包拼接后，用固定硬约束 + `distillPrompt`（或 `reading.distill.system_prompt`）一次重构成一篇 Markdown 精读。
 
-返回单个 `noteId`（另有 `usedSources` / `failedSources`）。`usedSources[].bodyChars` 表示该来源读到的材料字数；`failedSources` 表示 AI 未能读取或材料过短的来源。该步骤可能比搜索更慢，前端建议展示「正在读取网页并重构精读」。
+### 3.1 默认异步（`ingest.sync_mode=async`）
+
+提交后**立即**返回任务视图（统一 VO：`KnowledgeReadingJobVO`），不阻塞到精读完成：
+
+```json
+{
+  "jobId": 123,
+  "status": "PENDING",
+  "progress": "QUEUED",
+  "success": false,
+  "total": 2
+}
+```
+
+前端每 **2s** 轮询：
+
+```http
+GET /api/admin/knowledge/reading-jobs/{jobId}
+```
+
+| `progress` | 建议文案 |
+| --- | --- |
+| `QUEUED` | 排队中 |
+| `READING` | 正在读取网页 |
+| `DISTILLING` | 正在重构精读 |
+| `DONE` | 完成 |
+| `ERROR` | 失败 |
+
+| `status` | 前端动作 |
+| --- | --- |
+| `PENDING` / `RUNNING` | 继续轮询 |
+| `SUCCESS` | 用 `noteId` 进预览；可读 `usedSources` / `failedSources` |
+| `FAILED` | 展示 `errorMsg` |
+
+成功响应字段示例：`jobId`、`status=SUCCESS`、`progress=DONE`、`noteId`、`title`、`usedCount`、`failCount`、`warning`、`usedSources`、`failedSources`。
+
+Worker 全局串行：同时最多 1 个 `RUNNING`；排队任务保持 `PENDING`。单任务超过约 20 分钟会标 `FAILED`（超时）。
+
+第一版不做取消、不做 SSE。
+
+### 3.2 同步调试（`ingest.sync_mode=sync`）
+
+一次请求直接返回同一 VO，且 `status=SUCCESS`、`progress=DONE`、带 `noteId`（无 `jobId` 落库也可）。仅建议本地/排障使用；单 URL/文件采集仍强制 sync。
+
+`usedSources[].bodyChars` 表示该来源读到的材料字数；`failedSources` 表示 AI 未能读取或材料过短的来源。
 
 ## 4. 博客 / 知识库（步骤 4）
 
@@ -66,6 +112,8 @@ POST /api/admin/knowledge/ingest/batch-url
 
 - [ ] 配置引导：DeepSeek 官方 Key（与知识库 AI Key 分开）
 - [ ] 搜索列表预览勾选
-- [ ] batch-url 按单篇 note 处理，并支持可选 `distillPrompt`
-- [ ] 生成中 loading 文案：读取网页 + 重构精读
+- [ ] `POST batch-url` 取 `jobId`，每 2s 轮询 `GET /reading-jobs/{jobId}`
+- [ ] 按 `progress` 展示：排队 / 读取网页 / 重构精读 / 完成
+- [ ] `SUCCESS` → `noteId` 预览；`FAILED` → `errorMsg`
+- [ ] （可选）站点设置切 `sync` 做联调回归
 - [ ] 发布博客 / 入库按钮仍接现有接口

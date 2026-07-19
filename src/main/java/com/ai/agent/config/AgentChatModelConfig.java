@@ -1,5 +1,7 @@
 package com.ai.agent.config;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -11,6 +13,7 @@ import lombok.Data;
 
 import java.time.Duration;
 
+@ConditionalOnModule("chat")
 @Configuration
 @org.springframework.boot.context.properties.EnableConfigurationProperties(AgentChatModelConfig.AgentChatModelProperties.class)
 public class AgentChatModelConfig {

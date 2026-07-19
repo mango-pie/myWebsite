@@ -1,5 +1,7 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.model.entity.StudyList;
 import com.ai.model.vo.study.StudyFocusSessionVO;
 import com.ai.model.vo.study.StudyTodayStatsVO;
@@ -14,6 +16,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@ConditionalOnModule("study")
 @Service
 public class StudyWorkspaceServiceImpl implements StudyWorkspaceService {
 

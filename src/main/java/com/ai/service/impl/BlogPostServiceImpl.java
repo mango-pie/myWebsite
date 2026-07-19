@@ -1,12 +1,14 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.BizStatMetricConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.BlogCategoryMapper;
+import com.ai.mapper.blog.BlogCategoryMapper;
 import com.ai.model.dto.blog.BlogPostAddRequest;
 import com.ai.model.dto.blog.BlogPostQueryRequest;
 import com.ai.model.dto.blog.BlogPostUpdateRequest;
@@ -29,7 +31,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.LambdaGetter;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
-import com.ai.mapper.BlogPostMapper;
+import com.ai.mapper.blog.BlogPostMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("blog")
 @Service
 public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> implements BlogPostService {
 

@@ -1,5 +1,7 @@
 package com.ai.setting.module;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.config.knowledge.KnowledgeAiProperties;
 import com.ai.config.knowledge.KnowledgeJinaProperties;
 import com.ai.config.knowledge.KnowledgeRagProperties;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @Slf4j
+@ConditionalOnModule("knowledge")
 @Component
 public class KnowledgeModule implements SettingModule {
 

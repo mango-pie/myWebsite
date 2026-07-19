@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.config.knowledge.KnowledgeMinioProperties;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayInputStream;
 
 @Slf4j
+@ConditionalOnModule("knowledge")
 @Service
 public class MinioKnowledgeStorageServiceImpl implements KnowledgeStorageService {
 

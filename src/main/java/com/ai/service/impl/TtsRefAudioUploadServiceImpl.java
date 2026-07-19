@@ -1,5 +1,7 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
@@ -23,6 +25,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("tts")
 @Service
 public class TtsRefAudioUploadServiceImpl implements TtsRefAudioUploadService {
 

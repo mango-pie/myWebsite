@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.model.vo.knowledge.KnowledgeTextChunk;
 import com.ai.service.knowledge.KnowledgeChunkService;
 import com.ai.setting.runtime.KnowledgeRuntimeSettings;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeChunkServiceImpl implements KnowledgeChunkService {
 

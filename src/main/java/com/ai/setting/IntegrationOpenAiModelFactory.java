@@ -1,6 +1,7 @@
 package com.ai.setting;
 
 import cn.hutool.core.util.StrUtil;
+import com.ai.config.ChatImageCaptionProperties;
 import com.ai.service.IntegrationCredentialsService;
 import com.ai.setting.runtime.ChatRuntimeSettings;
 import dev.langchain4j.model.chat.ChatModel;
@@ -8,6 +9,7 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +25,10 @@ public class IntegrationOpenAiModelFactory {
     private IntegrationCredentialsService credentials;
 
     @Resource
-    private ChatRuntimeSettings chatRuntimeSettings;
+    private ObjectProvider<ChatRuntimeSettings> chatRuntimeSettingsProvider;
+
+    @Resource
+    private ChatImageCaptionProperties chatImageCaptionProperties;
 
     @Value("${langchain4j.open-ai.agent-chat-model.model-name:qwen-plus}")
     private String agentModelName;
@@ -53,11 +58,18 @@ public class IntegrationOpenAiModelFactory {
     }
 
     public ChatModel imageCaptionChatModel() {
+        ChatRuntimeSettings chatRuntimeSettings = chatRuntimeSettingsProvider.getIfAvailable();
+        String modelName = chatRuntimeSettings != null
+                ? chatRuntimeSettings.imageCaptionModelName()
+                : chatImageCaptionProperties.getModelName();
+        int timeoutSeconds = chatRuntimeSettings != null
+                ? chatRuntimeSettings.imageCaptionTimeoutSeconds()
+                : chatImageCaptionProperties.getTimeoutSeconds();
         return OpenAiChatModel.builder()
                 .baseUrl(trim(credentials.imageCaptionBaseUrl()))
                 .apiKey(StrUtil.blankToDefault(credentials.imageCaptionApiKey(), "missing-key"))
-                .modelName(chatRuntimeSettings.imageCaptionModelName())
-                .timeout(Duration.ofSeconds(Math.max(10, chatRuntimeSettings.imageCaptionTimeoutSeconds())))
+                .modelName(modelName)
+                .timeout(Duration.ofSeconds(Math.max(10, timeoutSeconds)))
                 .logRequests(false)
                 .logResponses(false)
                 .build();

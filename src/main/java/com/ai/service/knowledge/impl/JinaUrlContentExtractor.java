@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -19,6 +21,7 @@ import java.time.Duration;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class JinaUrlContentExtractor implements ContentExtractor {
 

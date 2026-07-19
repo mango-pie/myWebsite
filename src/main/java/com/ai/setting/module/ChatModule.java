@@ -1,5 +1,7 @@
 package com.ai.setting.module;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.agent.config.ChatAgentProperties;
 import com.ai.config.ChatAttachmentProperties;
 import com.ai.config.ChatImageCaptionProperties;
@@ -18,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@ConditionalOnModule("chat")
 @Component
 public class ChatModule implements SettingModule {
 

@@ -1,5 +1,7 @@
 package com.ai.setting.module;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.config.GptSovitsProperties;
 import com.ai.constant.SiteSettingConstant;
 import com.ai.exception.BusinessException;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@ConditionalOnModule("tts")
 @Component
 public class TtsModule implements SettingModule {
 

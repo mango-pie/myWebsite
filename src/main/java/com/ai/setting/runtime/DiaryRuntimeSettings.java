@@ -1,5 +1,7 @@
 package com.ai.setting.runtime;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.SiteSettingConstant;
 import com.ai.service.SiteSettingService;
 import jakarta.annotation.Resource;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Component;
 /**
  * diary 模块运行时读取：DB 覆盖默认值。
  */
+@ConditionalOnModule("diary")
 @Component
 public class DiaryRuntimeSettings {
 

@@ -1,5 +1,7 @@
 package com.ai.agent;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.agent.config.ChatAgentProperties;
@@ -49,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@ConditionalOnModule("chat")
 @Service
 @Slf4j
 public class ChatAgentFacade {

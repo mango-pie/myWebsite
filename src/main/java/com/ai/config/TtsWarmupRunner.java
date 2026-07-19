@@ -1,5 +1,7 @@
 package com.ai.config;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.model.entity.TtsVoiceProfile;
 import com.ai.service.TtsProxyService;
 import com.ai.service.TtsVoiceService;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.Resource;
 
 @Slf4j
+@ConditionalOnModule("tts")
 @Component
 public class TtsWarmupRunner implements ApplicationRunner {
 

@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
 import com.ai.model.dto.knowledge.KnowledgeBaseCreateRequest;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@ConditionalOnModule("knowledge")
 @RestController
 @RequestMapping("/kb/knowledge-bases")
 public class KnowledgeBaseController {

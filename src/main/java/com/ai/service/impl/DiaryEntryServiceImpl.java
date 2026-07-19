@@ -1,12 +1,14 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.DiaryEntryMapper;
+import com.ai.mapper.diary.DiaryEntryMapper;
 import com.ai.model.dto.diary.DiaryEntryQueryRequest;
 import com.ai.model.dto.diary.DiaryEntrySaveRequest;
 import com.ai.model.entity.DiaryEntry;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@ConditionalOnModule("diary")
 @Service
 public class DiaryEntryServiceImpl extends ServiceImpl<DiaryEntryMapper, DiaryEntry> implements DiaryEntryService {
 

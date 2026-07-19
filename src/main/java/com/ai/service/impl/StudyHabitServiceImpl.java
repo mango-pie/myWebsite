@@ -1,13 +1,15 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.BizStatMetricConstant;
 import com.ai.constant.StudyConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.StudyHabitCheckLogMapper;
-import com.ai.mapper.StudyHabitMapper;
+import com.ai.mapper.study.StudyHabitCheckLogMapper;
+import com.ai.mapper.study.StudyHabitMapper;
 import com.ai.model.dto.study.StudyHabitAddRequest;
 import com.ai.model.dto.study.StudyHabitCheckRequest;
 import com.ai.model.dto.study.StudyHabitUpdateRequest;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("study")
 @Service
 public class StudyHabitServiceImpl extends ServiceImpl<StudyHabitMapper, StudyHabit> implements StudyHabitService {
 

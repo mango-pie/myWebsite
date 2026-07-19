@@ -1,5 +1,7 @@
 package com.ai.config.factory;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.service.AiCodeGeneratorService;
 import com.ai.service.ChatHistoryService;
 import com.ai.setting.IntegrationClientCache;
@@ -19,6 +21,7 @@ import java.time.Duration;
 /**
  * AI 代码生成服务工厂类。
  */
+@ConditionalOnModule({"app-lab", "chat"})
 @Configuration
 public class AiCodeGeneratorServiceFactory {
 

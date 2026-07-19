@@ -1,10 +1,12 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.BizStatMetricConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.BizStatDailyMapper;
+import com.ai.mapper.ops.BizStatDailyMapper;
 import com.ai.model.entity.BizStatDaily;
 import com.ai.model.vo.ops.BizStatSeriesPointVO;
 import com.ai.model.vo.ops.BizStatsOverviewVO;
@@ -23,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
+@ConditionalOnModule("ops")
 @Service
 public class BizStatDailyServiceImpl implements BizStatDailyService {
 

@@ -1,5 +1,7 @@
 package com.ai.setting.module;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.SiteSettingConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -16,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("app-lab")
 @Component
 public class AppModule implements SettingModule {
 

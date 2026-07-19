@@ -1,5 +1,7 @@
 package com.ai.setting.module;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.SiteSettingConstant;
 import com.ai.setting.SettingFieldSchema;
 import com.ai.setting.SettingModule;
@@ -9,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@ConditionalOnModule("study")
 @Component
 public class StudyModule implements SettingModule {
 

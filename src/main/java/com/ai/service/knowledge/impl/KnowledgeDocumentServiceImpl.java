@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
@@ -44,6 +46,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentMapper, KnowledgeDocument>
         implements KnowledgeDocumentService {

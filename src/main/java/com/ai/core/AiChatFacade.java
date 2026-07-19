@@ -1,5 +1,7 @@
 package com.ai.core;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.model.dto.chat.ChatMessageSegment;
 import com.ai.model.entity.ChatConversation;
@@ -28,6 +30,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 
+@ConditionalOnModule("chat")
 @Service
 @Slf4j
 public class AiChatFacade {

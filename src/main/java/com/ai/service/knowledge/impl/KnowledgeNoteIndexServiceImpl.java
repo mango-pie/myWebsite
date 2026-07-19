@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.knowledge.KnowledgeNoteConstant;
@@ -31,6 +33,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService {
 

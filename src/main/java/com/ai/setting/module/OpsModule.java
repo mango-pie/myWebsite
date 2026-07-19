@@ -1,5 +1,7 @@
 package com.ai.setting.module;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.HttpLogModeConstant;
 import com.ai.constant.SiteSettingConstant;
 import com.ai.exception.BusinessException;
@@ -13,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+@ConditionalOnModule("ops")
 @Component
 public class OpsModule implements SettingModule {
 

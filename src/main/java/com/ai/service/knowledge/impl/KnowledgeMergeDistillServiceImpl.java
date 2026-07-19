@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.AiUsageSceneConstant;
 import com.ai.constant.BizStatMetricConstant;
@@ -22,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Consumer;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillService {
 
@@ -47,6 +51,14 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public KnowledgeIngestBatchUrlVO mergeDistill(KnowledgeIngestBatchUrlRequest request, Long userId) {
+        return mergeDistill(request, userId, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public KnowledgeIngestBatchUrlVO mergeDistill(KnowledgeIngestBatchUrlRequest request,
+                                                 Long userId,
+                                                 Consumer<String> progressCallback) {
         if (request == null || request.getUrls() == null || request.getUrls().isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "urls 不能为空");
         }
@@ -68,6 +80,7 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
         KnowledgeIngestBatchUrlVO vo = new KnowledgeIngestBatchUrlVO();
         vo.setTotal(urls.size());
         String agentQuery = StrUtil.trim(request.getAgentQuery());
+        notifyProgress(progressCallback, "READING");
         KnowledgeDeepSeekReadingService.MaterialBundle bundle =
                 deepSeekReadingService.materialize(urls, agentQuery);
         List<KnowledgeDeepSeekReadingService.MaterialSource> successes = bundle.usedSources();
@@ -107,6 +120,7 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
         SourceDocument source = ingestionService.ingestAgentResult(
                 title, primaryUrl, truncated.rawText(), null, userId);
 
+        notifyProgress(progressCallback, "DISTILLING");
         String markdown = mergeDistillChat(truncated.rawText(), agentQuery,
                 request.getDistillPrompt(), userId, source.getId());
         KnowledgeNote note = createNote(source, title, markdown, mergeTags(request.getTags(), agentQuery));
@@ -115,6 +129,12 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
         vo.setNoteId(note.getId());
         vo.setTitle(note.getTitle());
         return vo;
+    }
+
+    private void notifyProgress(Consumer<String> progressCallback, String progress) {
+        if (progressCallback != null) {
+            progressCallback.accept(progress);
+        }
     }
 
     private TruncatedMerge buildMergedRaw(List<KnowledgeDeepSeekReadingService.MaterialSource> successes,

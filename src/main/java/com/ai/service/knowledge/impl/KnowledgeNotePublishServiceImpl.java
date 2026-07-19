@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.constant.knowledge.KnowledgeNoteConstant;
@@ -7,16 +9,15 @@ import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.mapper.knowledge.KnowledgeNoteMapper;
 import com.ai.mapper.knowledge.SourceDocumentMapper;
-import com.ai.model.dto.blog.BlogPostAddRequest;
-import com.ai.model.dto.blog.BlogPostUpdateRequest;
 import com.ai.model.dto.knowledge.KnowledgeNotePublishRequest;
-import com.ai.model.entity.BlogPost;
 import com.ai.model.entity.knowledge.KnowledgeNote;
 import com.ai.model.entity.knowledge.SourceDocument;
 import com.ai.model.vo.blog.BlogPostVO;
-import com.ai.service.BlogPostService;
 import com.ai.service.knowledge.KnowledgeNotePublishService;
 import com.ai.service.knowledge.KnowledgeNoteService;
+import com.ai.service.knowledge.spi.NoteBlogPublishCommand;
+import com.ai.service.knowledge.spi.NoteBlogPublisher;
+import com.ai.service.knowledge.spi.NoteBlogSyncCommand;
 import com.ai.setting.runtime.ReadingRuntimeSettings;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeNotePublishServiceImpl implements KnowledgeNotePublishService {
 
@@ -39,14 +41,21 @@ public class KnowledgeNotePublishServiceImpl implements KnowledgeNotePublishServ
     private SourceDocumentMapper sourceDocumentMapper;
 
     @Resource
-    private BlogPostService blogPostService;
+    private NoteBlogPublisher noteBlogPublisher;
 
     @Resource
     private ReadingRuntimeSettings readingRuntimeSettings;
 
+    private void requireBlogAvailable() {
+        if (!noteBlogPublisher.isAvailable()) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "博客模块未启用，无法发布或同步博客");
+        }
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public BlogPostVO publishToBlog(Long noteId, KnowledgeNotePublishRequest request, Long userId) {
+        requireBlogAvailable();
         KnowledgeNote note = knowledgeNoteService.requireOwned(noteId, userId);
         if (note.getBlogPostId() != null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "该精读已关联博客，请使用同步博客接口");
@@ -61,32 +70,33 @@ public class KnowledgeNotePublishServiceImpl implements KnowledgeNotePublishServ
         }
 
         SourceDocument source = sourceDocumentMapper.selectOneById(note.getSourceDocumentId());
-        BlogPostAddRequest addRequest = new BlogPostAddRequest();
-        addRequest.setTitle(StrUtil.blankToDefault(note.getTitle(), "未命名精读"));
-        addRequest.setContent(note.getDistilledMd());
-        addRequest.setSummary(buildSummary(note.getDistilledMd()));
-        if (request != null) {
-            addRequest.setCategoryId(request.getCategoryId());
-            addRequest.setTagIds(request.getTagIds());
-        }
-        addRequest.setStatus(status);
-        addRequest.setExtendInfo(buildExtendInfo(note, source));
+        NoteBlogPublishCommand command = NoteBlogPublishCommand.builder()
+                .title(note.getTitle())
+                .contentMd(note.getDistilledMd())
+                .summary(buildSummary(note.getDistilledMd()))
+                .categoryId(request != null ? request.getCategoryId() : null)
+                .tagIds(request != null ? request.getTagIds() : null)
+                .status(status)
+                .extendInfo(buildExtendInfo(note, source))
+                .userId(userId)
+                .build();
+        BlogPostVO blogPost = noteBlogPublisher.publish(command);
 
-        long postId = blogPostService.addBlogPost(addRequest, userId);
         LocalDateTime now = LocalDateTime.now();
-        note.setBlogPostId(postId);
+        note.setBlogPostId(blogPost.getId());
         note.setPublishStatus(status == 1
                 ? KnowledgeNoteConstant.PUBLISH_PUBLISHED
                 : KnowledgeNoteConstant.PUBLISH_DRAFT_CREATED);
         note.setLastPublishedAt(now);
         note.setUpdateTime(now);
         knowledgeNoteMapper.update(note);
-        return blogPostService.getBlogPostVO(postId);
+        return blogPost;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public BlogPostVO syncToBlog(Long noteId, Long userId) {
+        requireBlogAvailable();
         KnowledgeNote note = knowledgeNoteService.requireOwned(noteId, userId);
         if (note.getBlogPostId() == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "该精读尚未发布博客，请先发布");
@@ -94,27 +104,23 @@ public class KnowledgeNotePublishServiceImpl implements KnowledgeNotePublishServ
         if (StrUtil.isBlank(note.getDistilledMd())) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "精读内容为空，无法同步博客");
         }
-        BlogPost post = blogPostService.getById(note.getBlogPostId());
-        if (post == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "关联的博客文章不存在");
-        }
-
-        BlogPostUpdateRequest updateRequest = new BlogPostUpdateRequest();
-        updateRequest.setId(note.getBlogPostId());
-        updateRequest.setTitle(StrUtil.blankToDefault(note.getTitle(), post.getTitle()));
-        updateRequest.setContent(note.getDistilledMd());
-        updateRequest.setSummary(buildSummary(note.getDistilledMd()));
-        updateRequest.setStatus(post.getStatus());
-        blogPostService.updateBlogPost(updateRequest, userId);
+        NoteBlogSyncCommand command = NoteBlogSyncCommand.builder()
+                .blogPostId(note.getBlogPostId())
+                .fallbackTitle(note.getTitle())
+                .contentMd(note.getDistilledMd())
+                .summary(buildSummary(note.getDistilledMd()))
+                .userId(userId)
+                .build();
+        BlogPostVO blogPost = noteBlogPublisher.sync(command);
 
         LocalDateTime now = LocalDateTime.now();
-        note.setPublishStatus(Integer.valueOf(1).equals(post.getStatus())
+        note.setPublishStatus(Integer.valueOf(1).equals(blogPost.getStatus())
                 ? KnowledgeNoteConstant.PUBLISH_PUBLISHED
                 : KnowledgeNoteConstant.PUBLISH_DRAFT_CREATED);
         note.setLastPublishedAt(now);
         note.setUpdateTime(now);
         knowledgeNoteMapper.update(note);
-        return blogPostService.getBlogPostVO(note.getBlogPostId());
+        return blogPost;
     }
 
     private String buildSummary(String markdown) {

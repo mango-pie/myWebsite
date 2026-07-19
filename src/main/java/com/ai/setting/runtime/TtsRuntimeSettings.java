@@ -1,5 +1,7 @@
 package com.ai.setting.runtime;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.config.GptSovitsProperties;
 import com.ai.constant.SiteSettingConstant;
 import com.ai.service.SiteSettingService;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * tts 模块运行时读取：DB 覆盖 YAML Properties。
  */
+@ConditionalOnModule("tts")
 @Component
 public class TtsRuntimeSettings {
 

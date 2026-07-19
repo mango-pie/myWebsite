@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
@@ -21,19 +23,19 @@ import com.ai.model.entity.knowledge.KnowledgeNote;
 import com.ai.model.entity.knowledge.SourceDocument;
 import com.ai.model.vo.blog.BlogPostVO;
 import com.ai.model.vo.knowledge.KnowledgeDocumentVO;
-import com.ai.model.vo.knowledge.KnowledgeIngestBatchUrlVO;
 import com.ai.model.vo.knowledge.KnowledgeNoteDetailVO;
 import com.ai.model.vo.knowledge.KnowledgeNoteVO;
+import com.ai.model.vo.knowledge.KnowledgeReadingJobVO;
 import com.ai.model.vo.knowledge.KnowledgeSearchPreviewVO;
 import com.ai.model.vo.knowledge.SearchResult;
 import com.ai.service.UserService;
 import com.ai.service.knowledge.KnowledgeAiModelService;
 import com.ai.service.knowledge.KnowledgeDistillationService;
 import com.ai.service.knowledge.KnowledgeIngestionService;
-import com.ai.service.knowledge.KnowledgeMergeDistillService;
 import com.ai.service.knowledge.KnowledgeNoteIndexService;
 import com.ai.service.knowledge.KnowledgeNotePublishService;
 import com.ai.service.knowledge.KnowledgeNoteService;
+import com.ai.service.knowledge.KnowledgeReadingJobService;
 import com.ai.service.knowledge.KnowledgeSearchStrategy;
 import com.ai.setting.runtime.ReadingRuntimeSettings;
 import com.mybatisflex.core.paginate.Page;
@@ -51,6 +53,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+@ConditionalOnModule("knowledge")
 @RestController
 @RequestMapping("/admin/knowledge")
 public class KnowledgeAdminController {
@@ -65,7 +68,7 @@ public class KnowledgeAdminController {
     private KnowledgeDistillationService distillationService;
 
     @Resource
-    private KnowledgeMergeDistillService knowledgeMergeDistillService;
+    private KnowledgeReadingJobService knowledgeReadingJobService;
 
     @Resource
     private KnowledgeNoteService knowledgeNoteService;
@@ -99,11 +102,21 @@ public class KnowledgeAdminController {
 
     @PostMapping("/ingest/batch-url")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<KnowledgeIngestBatchUrlVO> ingestBatchUrl(@RequestBody KnowledgeIngestBatchUrlRequest request,
-                                                                  HttpServletRequest httpRequest) {
-        requireSyncIngest();
+    public BaseResponse<KnowledgeReadingJobVO> ingestBatchUrl(@RequestBody KnowledgeIngestBatchUrlRequest request,
+                                                              HttpServletRequest httpRequest) {
         User loginUser = userService.getLoginUser(httpRequest);
-        return ResultUtils.success(knowledgeMergeDistillService.mergeDistill(request, loginUser.getId()));
+        if (readingRuntimeSettings.ingestAsync()) {
+            return ResultUtils.success(knowledgeReadingJobService.submit(request, loginUser.getId()));
+        }
+        return ResultUtils.success(knowledgeReadingJobService.runSync(request, loginUser.getId()));
+    }
+
+    @GetMapping("/reading-jobs/{jobId}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<KnowledgeReadingJobVO> getReadingJob(@PathVariable Long jobId,
+                                                             HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeReadingJobService.getJob(jobId, loginUser.getId()));
     }
 
     @PostMapping(value = "/ingest/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

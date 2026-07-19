@@ -1,5 +1,7 @@
 package com.ai.setting.runtime;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.agent.config.ChatAgentProperties;
 import com.ai.config.ChatAttachmentProperties;
 import com.ai.config.ChatImageCaptionProperties;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Component;
 /**
  * chat 模块运行时读取：DB 覆盖 YAML Properties。
  */
+@ConditionalOnModule("chat")
 @Component
 public class ChatRuntimeSettings {
 

@@ -1,5 +1,7 @@
 package com.ai.agent.registry;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.json.JSONUtil;
 import com.ai.agent.context.AgentToolContextHolder;
 import com.ai.agent.model.AgentToolContext;
@@ -13,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Slf4j
+@ConditionalOnModule("chat")
 @Component
 public class AgentToolGateway {
 

@@ -1,5 +1,7 @@
 package com.ai.filter;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.HttpLogModeConstant;
 import com.ai.constant.UserConstant;
 import com.ai.model.entity.User;
@@ -28,6 +30,7 @@ import java.util.UUID;
  * HTTP 访问日志采样 Filter（ops-observability Phase D）。
  */
 @Slf4j
+@ConditionalOnModule("ops")
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE - 20)
 public class HttpAccessLogFilter extends OncePerRequestFilter {

@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.config.knowledge.KnowledgeDeepSeekProperties;
 import com.ai.exception.BusinessException;
@@ -26,6 +28,7 @@ import java.util.Set;
 /**
  * DeepSeek 官方联网能力：按用户勾选 URL 读取材料，并基于物化材料重构精读。
  */
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeDeepSeekReadingService {
 

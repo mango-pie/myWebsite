@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.model.vo.knowledge.KnowledgeChunkVO;
 import com.ai.service.knowledge.KnowledgeAiModelService;
 import com.ai.service.knowledge.KnowledgeRagService;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeRagServiceImpl implements KnowledgeRagService {
 

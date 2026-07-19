@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.OpsAuditActionConstant;
 import com.ai.constant.knowledge.KnowledgeNoteConstant;
@@ -17,9 +19,9 @@ import com.ai.model.vo.blog.BlogPostVO;
 import com.ai.model.vo.knowledge.KnowledgeDocumentVO;
 import com.ai.model.vo.knowledge.KnowledgeNoteDetailVO;
 import com.ai.model.vo.knowledge.KnowledgeNoteVO;
-import com.ai.service.BlogPostService;
 import com.ai.service.OpsAuditLogService;
 import com.ai.service.knowledge.KnowledgeNoteService;
+import com.ai.service.knowledge.spi.NoteBlogPublisher;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
@@ -34,6 +36,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeNoteServiceImpl implements KnowledgeNoteService {
 
@@ -49,7 +52,7 @@ public class KnowledgeNoteServiceImpl implements KnowledgeNoteService {
     private KnowledgeDocumentMapper knowledgeDocumentMapper;
 
     @Resource
-    private BlogPostService blogPostService;
+    private NoteBlogPublisher noteBlogPublisher;
 
     @Resource
     private OpsAuditLogService opsAuditLogService;
@@ -155,11 +158,9 @@ public class KnowledgeNoteServiceImpl implements KnowledgeNoteService {
             detail.setRawTextSummary(summarize(source.getRawText()));
         }
         if (note.getBlogPostId() != null) {
-            try {
-                BlogPostVO blogPost = blogPostService.getBlogPostVO(note.getBlogPostId());
+            BlogPostVO blogPost = noteBlogPublisher.findBlogPost(note.getBlogPostId());
+            if (blogPost != null) {
                 detail.setBlogPost(blogPost);
-            } catch (Exception ignored) {
-                // blog may be deleted
             }
         }
         if (note.getKnowledgeDocumentId() != null) {

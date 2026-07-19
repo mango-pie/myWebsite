@@ -6,7 +6,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 
 /**
- * ops 模块运行时读取。
+ * ops 模块运行时读取（平台横切，随 ops 设置项读取；Bean 常驻）。
  */
 @Component
 public class OpsRuntimeSettings {

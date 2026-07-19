@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.BizStatMetricConstant;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeIngestionServiceImpl implements KnowledgeIngestionService {
 

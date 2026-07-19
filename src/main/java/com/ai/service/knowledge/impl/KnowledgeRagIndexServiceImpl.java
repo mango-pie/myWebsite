@@ -1,11 +1,14 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.model.vo.knowledge.KnowledgeDocumentVO;
 import com.ai.service.knowledge.KnowledgeRagIndexService;
 import org.springframework.stereotype.Service;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeRagIndexServiceImpl implements KnowledgeRagIndexService {
 

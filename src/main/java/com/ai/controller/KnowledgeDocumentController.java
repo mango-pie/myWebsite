@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
 import com.ai.model.dto.knowledge.KnowledgeDocumentQueryRequest;
@@ -25,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+@ConditionalOnModule("knowledge")
 @RestController
 @RequestMapping("/kb")
 public class KnowledgeDocumentController {

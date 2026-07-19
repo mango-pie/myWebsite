@@ -1,5 +1,7 @@
 package com.ai.setting.module;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.SiteSettingConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -13,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+@ConditionalOnModule("blog")
 @Component
 public class BlogModule implements SettingModule {
 

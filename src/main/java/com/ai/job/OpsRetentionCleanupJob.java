@@ -1,5 +1,7 @@
 package com.ai.job;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.service.AiUsageLogService;
 import com.ai.service.BizStatDailyService;
 import com.ai.service.HttpAccessLogService;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Component;
  * 按保留策略清理用量、操作审计、业务日统计、HTTP 访问日志。
  */
 @Slf4j
+@ConditionalOnModule("ops")
 @Component
 public class OpsRetentionCleanupJob {
 

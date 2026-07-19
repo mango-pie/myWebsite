@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
@@ -28,6 +30,7 @@ import java.util.List;
 /**
  * 运维可观测 Admin API（Phase A～D）。
  */
+@ConditionalOnModule("ops")
 @RestController
 @RequestMapping("/admin/ops")
 public class AdminOpsController {

@@ -1,5 +1,7 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+@ConditionalOnModule("chat")
 @Service
 public class ChatAttachmentServiceImpl implements ChatAttachmentService {
 

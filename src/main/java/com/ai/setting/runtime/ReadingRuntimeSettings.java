@@ -1,5 +1,7 @@
 package com.ai.setting.runtime;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.SiteSettingConstant;
 import com.ai.service.SiteSettingService;
 import com.ai.setting.module.ReadingModule;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * reading 模块运行时读取：DB 覆盖默认值。
  */
+@ConditionalOnModule("knowledge")
 @Component
 public class ReadingRuntimeSettings {
 
@@ -45,7 +48,7 @@ public class ReadingRuntimeSettings {
     }
 
     public String ingestSyncMode() {
-        return siteSettingService.getString(SiteSettingConstant.MODULE_READING, "ingest.sync_mode", "sync");
+        return siteSettingService.getString(SiteSettingConstant.MODULE_READING, "ingest.sync_mode", "async");
     }
 
     public boolean ingestAsync() {

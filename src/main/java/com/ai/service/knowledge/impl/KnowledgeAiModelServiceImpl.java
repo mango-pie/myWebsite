@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.AiUsageSceneConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -39,6 +41,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 @Slf4j
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeAiModelServiceImpl implements KnowledgeAiModelService {
 

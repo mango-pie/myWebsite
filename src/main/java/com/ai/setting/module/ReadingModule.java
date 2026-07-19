@@ -1,5 +1,7 @@
 package com.ai.setting.module;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.SiteSettingConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -12,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@ConditionalOnModule("reading")
 @Component
 public class ReadingModule implements SettingModule {
 
@@ -49,7 +52,7 @@ public class ReadingModule implements SettingModule {
                 bool("redistill.confirm_required", "重新蒸馏需二次确认", true, false),
 
                 enumStr("search.provider", "搜索提供方", "deepseek", List.copyOf(SEARCH_PROVIDERS)),
-                enumStr("ingest.sync_mode", "采集模式", "sync", List.copyOf(SYNC_MODES))
+                enumStr("ingest.sync_mode", "采集模式", "async", List.copyOf(SYNC_MODES))
         );
     }
 

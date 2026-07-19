@@ -1,7 +1,7 @@
 package com.ai.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.ai.mapper.SiteSettingAuditMapper;
+import com.ai.mapper.platform.SiteSettingAuditMapper;
 import com.ai.model.entity.SiteSettingAudit;
 import com.ai.model.vo.setting.SiteSettingAuditVO;
 import com.ai.service.SiteSettingAuditService;

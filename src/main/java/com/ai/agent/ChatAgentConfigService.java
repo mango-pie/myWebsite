@@ -1,11 +1,14 @@
 package com.ai.agent;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.agent.registry.AgentToolRegistry;
 import com.ai.model.vo.chat.ChatAgentConfigVO;
 import com.ai.setting.runtime.ChatRuntimeSettings;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
+@ConditionalOnModule("chat")
 @Service
 public class ChatAgentConfigService {
 

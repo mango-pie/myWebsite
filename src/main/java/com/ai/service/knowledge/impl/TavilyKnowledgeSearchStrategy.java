@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.config.knowledge.KnowledgeTavilyProperties;
 import com.ai.exception.BusinessException;
@@ -25,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class TavilyKnowledgeSearchStrategy implements KnowledgeSearchStrategy {
 

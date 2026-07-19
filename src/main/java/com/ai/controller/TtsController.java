@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
 import com.ai.common.DeleteRequest;
@@ -28,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@ConditionalOnModule("tts")
 @RestController
 @RequestMapping("/tts")
 public class TtsController {

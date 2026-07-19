@@ -1,11 +1,13 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.config.GptSovitsProperties;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.TtsVoiceProfileMapper;
+import com.ai.mapper.tts.TtsVoiceProfileMapper;
 import com.ai.model.dto.tts.TtsVoiceUpdateRequest;
 import com.ai.model.entity.TtsVoiceProfile;
 import com.ai.model.vo.tts.TtsVoiceVO;
@@ -27,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("tts")
 @Service
 public class TtsVoiceServiceImpl extends ServiceImpl<TtsVoiceProfileMapper, TtsVoiceProfile>
         implements TtsVoiceService {

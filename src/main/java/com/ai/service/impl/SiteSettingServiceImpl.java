@@ -6,7 +6,7 @@ import com.ai.constant.SiteSettingAuditConstant;
 import com.ai.constant.SiteSettingConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.SiteSettingMapper;
+import com.ai.mapper.platform.SiteSettingMapper;
 import com.ai.model.dto.setting.SiteSettingUpdateRequest;
 import com.ai.model.entity.SiteSetting;
 import com.ai.model.vo.setting.SettingFieldMetaVO;

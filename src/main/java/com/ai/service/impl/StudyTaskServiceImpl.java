@@ -1,15 +1,15 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.StudyConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.StudyTaskMapper;
-import com.ai.mapper.BlogPostMapper;
+import com.ai.mapper.study.StudyTaskMapper;
 import com.ai.model.dto.study.*;
-import com.ai.model.entity.BlogPost;
 import com.ai.model.entity.StudyList;
 import com.ai.model.entity.StudyTask;
 import com.ai.model.vo.study.StudyBlogSyncVO;
@@ -19,6 +19,8 @@ import com.ai.service.StudyListService;
 import com.ai.service.StudyRedisCacheService;
 import com.ai.service.StudyTaskChecklistService;
 import com.ai.service.StudyTaskService;
+import com.ai.service.study.spi.BlogDraftItem;
+import com.ai.service.study.spi.BlogDraftReader;
 import com.ai.utils.StudyDateUtils;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -33,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("study")
 @Service
 public class StudyTaskServiceImpl extends ServiceImpl<StudyTaskMapper, StudyTask> implements StudyTaskService {
 
@@ -47,7 +50,7 @@ public class StudyTaskServiceImpl extends ServiceImpl<StudyTaskMapper, StudyTask
     private StudyRedisCacheService studyRedisCacheService;
 
     @Resource
-    private BlogPostMapper blogPostMapper;
+    private BlogDraftReader blogDraftReader;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -311,13 +314,11 @@ public class StudyTaskServiceImpl extends ServiceImpl<StudyTaskMapper, StudyTask
     @Transactional(rollbackFor = Exception.class)
     public StudyBlogSyncVO syncBlogDrafts(Long userId) {
         StudyList inbox = studyListService.getOrCreateInbox(userId);
-        List<BlogPost> drafts = blogPostMapper.selectListByQuery(QueryWrapper.create()
-                .where("user_id = ?", userId)
-                .and("status = ?", 0));
+        List<BlogDraftItem> drafts = blogDraftReader.listDraftsByUser(userId);
 
         List<Long> taskIds = new ArrayList<>();
         int synced = 0;
-        for (BlogPost post : drafts) {
+        for (BlogDraftItem post : drafts) {
             StudyTask existing = this.getOne(QueryWrapper.create()
                     .where("user_id = ?", userId)
                     .and("source_type = ?", StudyConstant.SOURCE_TYPE_BLOG_DRAFT)

@@ -1,5 +1,7 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
@@ -28,6 +30,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+@ConditionalOnModule("tts")
 @Service
 public class TtsProxyServiceImpl implements TtsProxyService {
 

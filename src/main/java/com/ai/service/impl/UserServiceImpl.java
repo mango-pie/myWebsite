@@ -8,7 +8,7 @@ import com.ai.constant.SiteSettingConstant;
 import com.ai.constant.UserConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.UserMapper;
+import com.ai.mapper.platform.UserMapper;
 import com.ai.model.dto.user.UserQueryRequest;
 import com.ai.model.entity.User;
 import com.ai.model.enums.UserRoleEnum;

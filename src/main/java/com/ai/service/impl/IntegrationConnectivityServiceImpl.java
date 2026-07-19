@@ -12,6 +12,7 @@ import com.ai.service.knowledge.KnowledgeVectorStoreService;
 import io.minio.BucketExistsArgs;
 import io.minio.MinioClient;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -35,11 +36,11 @@ public class IntegrationConnectivityServiceImpl implements IntegrationConnectivi
     @Resource
     private IntegrationCredentialsService credentials;
     @Resource
-    private AstrBotChatService astrBotChatService;
+    private ObjectProvider<AstrBotChatService> astrBotChatServiceProvider;
     @Resource
-    private TtsProxyService ttsProxyService;
+    private ObjectProvider<TtsProxyService> ttsProxyServiceProvider;
     @Resource
-    private KnowledgeVectorStoreService knowledgeVectorStoreService;
+    private ObjectProvider<KnowledgeVectorStoreService> knowledgeVectorStoreServiceProvider;
 
     @Autowired(required = false)
     private StringRedisTemplate stringRedisTemplate;
@@ -91,10 +92,22 @@ public class IntegrationConnectivityServiceImpl implements IntegrationConnectivi
                 case "codegen" -> testOpenAiCompat(
                         t, credentials.codegenBaseUrl(), credentials.codegenApiKey(), "/models");
                 case "jina" -> testJina();
-                case "astrbot" -> result(t, astrBotChatService.isAvailable(), start,
-                        astrBotChatService.isAvailable() ? "AstrBot 可达" : "AstrBot 不可达");
-                case "tts" -> result(t, ttsProxyService.isAvailable(), start,
-                        ttsProxyService.isAvailable() ? "GPT-SoVITS 可达" : "GPT-SoVITS 不可达");
+                case "astrbot" -> {
+                    AstrBotChatService astrBotChatService = astrBotChatServiceProvider.getIfAvailable();
+                    if (astrBotChatService == null) {
+                        yield result(t, false, start, "聊天模块未启用，已跳过");
+                    }
+                    yield result(t, astrBotChatService.isAvailable(), start,
+                            astrBotChatService.isAvailable() ? "AstrBot 可达" : "AstrBot 不可达");
+                }
+                case "tts" -> {
+                    TtsProxyService ttsProxyService = ttsProxyServiceProvider.getIfAvailable();
+                    if (ttsProxyService == null) {
+                        yield result(t, false, start, "TTS 模块未启用，已跳过");
+                    }
+                    yield result(t, ttsProxyService.isAvailable(), start,
+                            ttsProxyService.isAvailable() ? "GPT-SoVITS 可达" : "GPT-SoVITS 不可达");
+                }
                 case "minio" -> testMinio();
                 default -> throw new BusinessException(ErrorCode.PARAMS_ERROR,
                         "未知 target，支持: " + String.join(", ", ALL_TARGETS));
@@ -128,6 +141,10 @@ public class IntegrationConnectivityServiceImpl implements IntegrationConnectivi
 
     private IntegrationTestResultVO testVector() {
         long start = System.currentTimeMillis();
+        KnowledgeVectorStoreService knowledgeVectorStoreService = knowledgeVectorStoreServiceProvider.getIfAvailable();
+        if (knowledgeVectorStoreService == null) {
+            return result("vector", false, start, "知识库模块未启用，已跳过");
+        }
         boolean ok = knowledgeVectorStoreService.ping();
         return result("vector", ok, start, ok ? "向量库 SELECT 1 成功" : "向量库不可达");
     }

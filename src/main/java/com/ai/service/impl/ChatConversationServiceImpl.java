@@ -1,11 +1,13 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.BizStatMetricConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.ChatConversationMapper;
+import com.ai.mapper.chat.ChatConversationMapper;
 import com.ai.model.entity.ChatConversation;
 import com.ai.model.vo.chat.ChatConfigVO;
 import com.ai.model.vo.chat.ChatConversationVO;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("chat")
 @Service
 public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMapper, ChatConversation>
         implements ChatConversationService {

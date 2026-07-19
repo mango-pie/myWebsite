@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.config.knowledge.KnowledgeVectorProperties;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeVectorStoreServiceImpl implements KnowledgeVectorStoreService {
 

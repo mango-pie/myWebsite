@@ -1,8 +1,10 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.AiUsageSceneConstant;
-import com.ai.mapper.AiUsageLogMapper;
+import com.ai.mapper.ops.AiUsageLogMapper;
 import com.ai.model.dto.ops.AiUsageRecord;
 import com.ai.model.entity.AiUsageLog;
 import com.ai.model.vo.ops.AiUsageLogVO;
@@ -25,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
+@ConditionalOnModule("ops")
 @Service
 public class AiUsageLogServiceImpl implements AiUsageLogService {
 

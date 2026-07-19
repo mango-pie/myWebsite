@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
+@ConditionalOnModule("study")
 @RestController
 @RequestMapping("/study/stats")
 public class StudyStatsController {

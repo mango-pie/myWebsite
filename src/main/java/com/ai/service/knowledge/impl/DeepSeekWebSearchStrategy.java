@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.config.knowledge.KnowledgeDeepSeekProperties;
 import com.ai.exception.BusinessException;
@@ -30,6 +32,7 @@ import java.util.regex.Pattern;
 /**
  * DeepSeek 官方 Anthropic 兼容端 + web_search：对齐网页版联网找页，产出候选 URL 列表。
  */
+@ConditionalOnModule("knowledge")
 @Service
 public class DeepSeekWebSearchStrategy implements KnowledgeSearchStrategy {
 

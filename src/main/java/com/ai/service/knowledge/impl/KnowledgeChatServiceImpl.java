@@ -1,5 +1,7 @@
 package com.ai.service.knowledge.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.AiUsageSceneConstant;
@@ -37,6 +39,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
+@ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeChatServiceImpl implements KnowledgeChatService {
 
