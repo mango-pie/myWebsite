@@ -67,7 +67,8 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
     @Resource
     private BizStatDailyService bizStatDailyService;
 
-    /** knowledge 关闭时由 NoOp 兜底；删博客后回写断开精读关联 */
+    /** knowledge 关闭时由 NoOp 兜底；删博客后回写断开精读关联。@Lazy breaks blog-knowledge SPI cycle; no allow-circular-references */
+    @Lazy
     @Resource
     private KnowledgeNoteUnlinker knowledgeNoteUnlinker;
 
