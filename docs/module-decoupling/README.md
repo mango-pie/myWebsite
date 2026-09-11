@@ -6,6 +6,7 @@
 | --- | --- |
 | [00 设计清单](./00-design-checklist.md) | 目标、模块划分、开关契约、SPI、验收 |
 | [01 前端对接](./01-frontend-integration.md) | `GET /api/app/modules`、菜单/路由隐藏 |
+| [02 Pet SPI + Facade](./02-pet-spi-facade.md) | Pet 聊天/日记/TTS：Bridge SPI + PetFacade，模块关闭走 NoOp |
 
 相关：
 
