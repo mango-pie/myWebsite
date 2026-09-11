@@ -1,4 +1,8 @@
-# Knowledge AI 文档目录
+# Knowledge AI 文档目录 / Ai-Backend 文档入口
+
+> **当前后端运行时约定**（与架构基线一致）：Java **17**、Maven、端口 **8123**、context **`/api`**、**Session 鉴权**（非 JWT）、业务模块开关 **`app.modules.*`**。  
+> 新人请先读仓库根 [README.md](../README.md)，模块解耦权威文档：[module-decoupling/](./module-decoupling/README.md)，Schema 清单：[sql/README-modules.md](../src/main/resources/sql/README-modules.md)。  
+> 下文 `00`～`06` 多为原 Knowledge AI **历史规划**；其中 JWT / 微服务等表述**不代表**本仓库现状。
 
 这里存放 **原 Knowledge AI 独立项目** 的需求、阶段规划、简历材料和面试讲解文档（`00`～`06`），以及 Ai-Backend 集成后的联调说明。
 
@@ -9,7 +13,7 @@
 | AI 精读工作台 | [ai-reading-workbench/](./ai-reading-workbench/README.md) |
 | 全站设置中心 | [site-settings/](./site-settings/README.md) |
 | 运维可观测 | [ops-observability/](./ops-observability/README.md) |
-| 模块解耦 | [module-decoupling/](./module-decoupling/00-design-checklist.md) |
+| 模块解耦 | [module-decoupling/](./module-decoupling/README.md) |
 
 ## 文档列表（Knowledge AI 原项目规划）
 
