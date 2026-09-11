@@ -24,6 +24,7 @@ import com.ai.service.knowledge.KnowledgeNoteService;
 import com.ai.service.knowledge.spi.NoteBlogPublisher;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.update.UpdateChain;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
@@ -232,6 +233,31 @@ public class KnowledgeNoteServiceImpl implements KnowledgeNoteService {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "精读笔记不存在");
         }
         return note;
+    }
+
+    @Override
+    public void clearBlogLinkByPostId(Long blogPostId, Long userId) {
+        if (blogPostId == null || userId == null) {
+            return;
+        }
+        List<KnowledgeNote> notes = knowledgeNoteMapper.selectListByQuery(
+                QueryWrapper.create().eq("blog_post_id", blogPostId));
+        if (notes == null || notes.isEmpty()) {
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        for (KnowledgeNote note : notes) {
+            SourceDocument source = sourceDocumentMapper.selectOneById(note.getSourceDocumentId());
+            if (source == null || !Objects.equals(source.getUserId(), userId)) {
+                continue;
+            }
+            UpdateChain.of(knowledgeNoteMapper)
+                    .set(KnowledgeNote::getBlogPostId, null)
+                    .set(KnowledgeNote::getPublishStatus, KnowledgeNoteConstant.PUBLISH_NOT_PUBLISHED)
+                    .set(KnowledgeNote::getUpdateTime, now)
+                    .eq(KnowledgeNote::getId, note.getId())
+                    .update();
+        }
     }
 
     @Override

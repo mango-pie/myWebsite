@@ -20,4 +20,10 @@ public interface KnowledgeNoteService {
     KnowledgeNote requireOwned(Long noteId, Long userId);
 
     KnowledgeNoteVO toVO(KnowledgeNote note);
+
+    /**
+     * 博客软删后回写：清空关联精读的 blogPostId，publishStatus 置为未发布。
+     * 无关联 note 时幂等 no-op。
+     */
+    void clearBlogLinkByPostId(Long blogPostId, Long userId);
 }
