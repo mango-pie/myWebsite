@@ -17,6 +17,7 @@ import com.ai.model.entity.BlogPost;
 import com.ai.model.entity.BlogPostTag;
 import com.ai.model.entity.BlogTag;
 import com.ai.model.entity.User;
+import com.ai.model.enums.UserRoleEnum;
 import com.ai.model.vo.blog.BlogPostVO;
 import com.ai.model.vo.blog.BlogImageVO;
 import com.ai.model.vo.blog.BlogTagVO;
@@ -33,6 +34,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.LambdaGetter;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.ai.mapper.blog.BlogPostMapper;
+
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -268,6 +270,15 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
 
     @Override
     public BlogPostVO getBlogPostVO(Long id) {
+        return getBlogPostVO(id, null, true);
+    }
+
+    @Override
+    public BlogPostVO getBlogPostVO(Long id, User viewer) {
+        return getBlogPostVO(id, viewer, false);
+    }
+
+    private BlogPostVO getBlogPostVO(Long id, User viewer, boolean skipVisibility) {
         if (id == null) {
             return null;
         }
@@ -275,23 +286,66 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
         if (blogPost == null) {
             return null;
         }
+        if (!skipVisibility && !canViewPost(blogPost, viewer)) {
+            return null;
+        }
         return convertToVO(blogPost);
     }
 
     @Override
-    public Page<BlogPostVO> queryBlogPostPage(BlogPostQueryRequest blogPostQueryRequest) {
+    public Page<BlogPostVO> queryBlogPostPage(BlogPostQueryRequest blogPostQueryRequest, User viewer) {
         if (blogPostQueryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
 
+        applyPublicListVisibility(blogPostQueryRequest, viewer);
         int pageNum = blogPostQueryRequest.getPageNum();
         int pageSize = blogRuntimeSettings.resolvePageSize(blogPostQueryRequest.getPageSize());
         blogPostQueryRequest.setPageSize(pageSize);
-        Page<BlogPost> postPage = this.page(Page.of(pageNum, pageSize), getQueryWrapper(blogPostQueryRequest));
+        QueryWrapper queryWrapper = getQueryWrapper(blogPostQueryRequest);
+        if (viewer != null && !isStaffAdmin(viewer)) {
+            queryWrapper.and("(status = ? OR user_id = ?)", 1, viewer.getId());
+        }
+        Page<BlogPost> postPage = this.page(Page.of(pageNum, pageSize), queryWrapper);
 
         Page<BlogPostVO> voPage = new Page<>(pageNum, pageSize, postPage.getTotalRow());
         voPage.setRecords(postPage.getRecords().stream().map(this::convertToVO).collect(Collectors.toList()));
         return voPage;
+    }
+
+    /** package-private for tests */
+    static void applyPublicListVisibility(BlogPostQueryRequest request, User viewer) {
+        if (request == null) {
+            return;
+        }
+        if (viewer == null) {
+            request.setStatus(1);
+        }
+    }
+
+    /** package-private for tests */
+    static boolean canViewPost(BlogPost post, User viewer) {
+        if (post == null) {
+            return false;
+        }
+        if (Integer.valueOf(1).equals(post.getStatus())) {
+            return true;
+        }
+        if (viewer == null || viewer.getId() == null) {
+            return false;
+        }
+        if (viewer.getId().equals(post.getUserId())) {
+            return true;
+        }
+        return isStaffAdmin(viewer);
+    }
+
+    static boolean isStaffAdmin(User user) {
+        if (user == null) {
+            return false;
+        }
+        UserRoleEnum role = UserRoleEnum.getEnumByValue(user.getUserRole());
+        return UserRoleEnum.ADMIN.equals(role) || UserRoleEnum.ADMINISTRATOR.equals(role);
     }
 
     @Override
