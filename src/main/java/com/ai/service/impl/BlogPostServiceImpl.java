@@ -26,6 +26,7 @@ import com.ai.service.BlogPostTagService;
 import com.ai.service.BlogPostService;
 import com.ai.service.BlogTagService;
 import com.ai.service.UserService;
+import com.ai.service.blog.spi.KnowledgeNoteUnlinker;
 import com.ai.setting.runtime.BlogRuntimeSettings;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -65,6 +66,10 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
 
     @Resource
     private BizStatDailyService bizStatDailyService;
+
+    /** knowledge 关闭时由 NoOp 兜底；删博客后回写断开精读关联 */
+    @Resource
+    private KnowledgeNoteUnlinker knowledgeNoteUnlinker;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -180,6 +185,9 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
         }
 
         blogPostTagService.removeByPostId(id);
+
+        // 若由精读发布：断开 note.blogPostId（knowledge 关则为 NoOp）
+        knowledgeNoteUnlinker.clearBlogLinkByPostId(id, userId);
         return true;
     }
 
