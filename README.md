@@ -106,6 +106,7 @@ API 文档（Knife4j / springdoc）：`http://localhost:8123/api/swagger-ui.html
 - 对应 Controller / 多数 Bean / Mapper **不注册**
 - 相关 API 表现为 **404**（或文档约定的业务码），不应 NPE
 - 跨模块能力走 SPI；对端关闭时明确报错或 NoOp，不强依赖对方表
+- 平台集成探测对 chat/tts/knowledge 用 `ObjectProvider.getIfAvailable()`（关模块跳过、不 NPE）；维持此为终态，不另建 `IntegrationProbe` SPI
 
 | Key | 含义（摘要） |
 | --- | --- |

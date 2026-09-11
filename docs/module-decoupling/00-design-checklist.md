@@ -103,7 +103,7 @@ flowchart TB
 对 `BlogPostService` / `knowledge.*` / `Tts*` / `Study*` / `Chat*` / `Diary*` 等模块服务的注入方做了全量排查：
 
 - 业务模块之间已无「非本模块、未经 SPI/ObjectProvider」的强注入（C1/C10 已消除）。
-- 唯一的平台级跨模块注入点 `IntegrationConnectivityServiceImpl` 已用 `ObjectProvider` 守卫。
+- 唯一的平台级跨模块注入点 `IntegrationConnectivityServiceImpl` 已用 `ObjectProvider` 守卫（**终态**：不另建 `IntegrationProbe` SPI；关 chat/tts/knowledge 时探测跳过、不 NPE）。
 - Agent 工具（blog/study/diary）均 `chat` + 对应模块双开才注册。
 - Ops 横切依赖由 NoOp 兜底。
 

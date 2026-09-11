@@ -27,6 +27,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+/**
+ * 平台集成连通性探测。对 chat / tts / knowledge 等可选模块使用 {@link ObjectProvider#getIfAvailable()}，
+ * 关模块时跳过探测、不 NPE。经评估维持 ObjectProvider 为终态，不另建 IntegrationProbe SPI
+ *（单体内编译期类型引用可接受；运行时已安全；SPI 收益不足以覆盖引入成本）。
+ */
 public class IntegrationConnectivityServiceImpl implements IntegrationConnectivityService {
 
     private static final List<String> ALL_TARGETS = List.of(
@@ -35,10 +40,14 @@ public class IntegrationConnectivityServiceImpl implements IntegrationConnectivi
 
     @Resource
     private IntegrationCredentialsService credentials;
+
+    /** chat 关则 Bean 不存在；探测走 getIfAvailable，终态约定见类注释。 */
     @Resource
     private ObjectProvider<AstrBotChatService> astrBotChatServiceProvider;
+    /** tts 关则 Bean 不存在；同上。 */
     @Resource
     private ObjectProvider<TtsProxyService> ttsProxyServiceProvider;
+    /** knowledge 关则 Bean 不存在；同上。 */
     @Resource
     private ObjectProvider<KnowledgeVectorStoreService> knowledgeVectorStoreServiceProvider;
 
