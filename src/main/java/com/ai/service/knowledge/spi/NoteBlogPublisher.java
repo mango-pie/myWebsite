@@ -19,4 +19,10 @@ public interface NoteBlogPublisher {
 
     /** 详情展示用；不可用或不存在时返回 {@code null}。 */
     BlogPostVO findBlogPost(Long blogPostId);
+
+    /**
+     * 软删关联博客（与博客管理删除同语义）。
+     * 文章不存在或已删除时应幂等成功，不向外抛「不存在」。
+     */
+    void softDelete(Long blogPostId, Long userId);
 }

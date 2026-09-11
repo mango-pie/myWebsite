@@ -69,4 +69,21 @@ public class BlogNoteBlogPublisher implements NoteBlogPublisher {
             return null;
         }
     }
+
+    @Override
+    public void softDelete(Long blogPostId, Long userId) {
+        if (blogPostId == null || userId == null) {
+            return;
+        }
+        try {
+            blogPostService.deleteBlogPost(blogPostId, userId);
+        } catch (BusinessException e) {
+            // 已删或不存在：级联删除幂等
+            if (e.getCode() == ErrorCode.NOT_FOUND_ERROR.getCode()
+                    || (e.getMessage() != null && e.getMessage().contains("不存在"))) {
+                return;
+            }
+            throw e;
+        }
+    }
 }
