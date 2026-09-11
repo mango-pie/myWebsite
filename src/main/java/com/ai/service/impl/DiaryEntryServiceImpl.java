@@ -1,12 +1,14 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.DiaryEntryMapper;
+import com.ai.mapper.diary.DiaryEntryMapper;
 import com.ai.model.dto.diary.DiaryEntryQueryRequest;
 import com.ai.model.dto.diary.DiaryEntrySaveRequest;
 import com.ai.model.entity.DiaryEntry;
@@ -14,9 +16,11 @@ import com.ai.model.vo.diary.DiaryEntryMonthItemVO;
 import com.ai.model.vo.diary.DiaryEntryPrevNextVO;
 import com.ai.model.vo.diary.DiaryEntryVO;
 import com.ai.service.DiaryEntryService;
+import com.ai.setting.runtime.DiaryRuntimeSettings;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
+import jakarta.annotation.Resource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -25,8 +29,12 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@ConditionalOnModule("diary")
 @Service
 public class DiaryEntryServiceImpl extends ServiceImpl<DiaryEntryMapper, DiaryEntry> implements DiaryEntryService {
+
+    @Resource
+    private DiaryRuntimeSettings diaryRuntimeSettings;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -42,7 +50,9 @@ public class DiaryEntryServiceImpl extends ServiceImpl<DiaryEntryMapper, DiaryEn
 
         DiaryEntry existing = findActiveByUserAndDate(userId, request.getDiaryDate());
         LocalDateTime now = LocalDateTime.now();
-        Integer status = request.getStatus() != null ? request.getStatus() : 0;
+        Integer status = request.getStatus() != null
+                ? request.getStatus()
+                : diaryRuntimeSettings.defaultStatusWhenNull();
 
         if (existing != null) {
             existing.setTitle(request.getTitle());
@@ -116,10 +126,11 @@ public class DiaryEntryServiceImpl extends ServiceImpl<DiaryEntryMapper, DiaryEn
         }
 
         int pageNum = request.getPageNum();
-        int pageSize = request.getPageSize();
+        int pageSize = diaryRuntimeSettings.resolvePageSize(request.getPageSize());
         if (pageSize > 100) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+        request.setPageSize(pageSize);
 
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .eq("user_id", userId)

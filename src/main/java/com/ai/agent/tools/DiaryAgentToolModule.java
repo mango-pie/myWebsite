@@ -1,5 +1,7 @@
 package com.ai.agent.tools;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
@@ -21,6 +23,7 @@ import java.util.Map;
 
 import static com.ai.agent.registry.AgentToolRegistryBuilder.*;
 
+@ConditionalOnModule({"chat", "diary"})
 @Component
 public class DiaryAgentToolModule extends AgentToolModule {
 

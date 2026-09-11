@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
@@ -21,6 +23,7 @@ import java.util.List;
  * 对话历史 控制层。
  *
  */
+@ConditionalOnModule("chat")
 @RestController
 @RequestMapping("/chatHistory")
 public class ChatHistoryController {

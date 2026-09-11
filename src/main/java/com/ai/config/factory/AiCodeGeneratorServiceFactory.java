@@ -1,11 +1,14 @@
 package com.ai.config.factory;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.service.AiCodeGeneratorService;
 import com.ai.service.ChatHistoryService;
+import com.ai.setting.IntegrationClientCache;
+import com.ai.setting.IntegrationOpenAiModelFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
-import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
@@ -18,6 +21,7 @@ import java.time.Duration;
 /**
  * AI 代码生成服务工厂类。
  */
+@ConditionalOnModule({"app-lab", "chat"})
 @Configuration
 public class AiCodeGeneratorServiceFactory {
 
@@ -28,10 +32,18 @@ public class AiCodeGeneratorServiceFactory {
     private StreamingChatModel streamingChatModel;
 
     @Resource
+    private IntegrationOpenAiModelFactory integrationOpenAiModelFactory;
+
+    @Resource
+    private IntegrationClientCache integrationClientCache;
+
+    @Resource
     private ChatMemoryStore chatMemoryStore;
 
     @Resource
     private ChatHistoryService chatHistoryService;
+
+    private volatile long cachedIntegrationVersion = -1;
 
     /**
      * 默认提供一个 Bean
@@ -61,6 +73,11 @@ public class AiCodeGeneratorServiceFactory {
      * 根据 appId 获取服务（带缓存）
      */
     public AiCodeGeneratorService getAiCodeGeneratorService(long appId) {
+        long version = integrationClientCache.version();
+        if (version != cachedIntegrationVersion) {
+            serviceCache.invalidateAll();
+            cachedIntegrationVersion = version;
+        }
         return serviceCache.get(appId, this::createAiCodeGeneratorService);
     }
 
@@ -78,10 +95,19 @@ public class AiCodeGeneratorServiceFactory {
                 .build();
         // 从数据库加载历史对话到记忆中
         chatHistoryService.loadChatHistoryToMemory(appId, chatMemory, 20);
+        StreamingChatModel model = resolveStreamingChatModel();
         return AiServices.builder(AiCodeGeneratorService.class)
-                .streamingChatModel(streamingChatModel)
+                .streamingChatModel(model)
                 .chatMemory(chatMemory)
                 .build();
+    }
+
+    private StreamingChatModel resolveStreamingChatModel() {
+        try {
+            return integrationOpenAiModelFactory.codegenStreamingChatModel();
+        } catch (Exception e) {
+            return streamingChatModel;
+        }
     }
 
 

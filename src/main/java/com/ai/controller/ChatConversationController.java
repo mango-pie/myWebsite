@@ -1,5 +1,7 @@
 package com.ai.controller;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@ConditionalOnModule("chat")
 @RestController
 @RequestMapping("/chat/conversations")
 public class ChatConversationController {

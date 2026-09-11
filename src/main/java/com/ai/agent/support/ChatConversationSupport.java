@@ -1,5 +1,7 @@
 package com.ai.agent.support;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import com.ai.model.entity.ChatConversation;
 import com.ai.model.vo.chat.ChatConversationVO;
@@ -7,6 +9,7 @@ import com.ai.service.ChatConversationService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerErrorException;
 
+@ConditionalOnModule("chat")
 @Component
 public class ChatConversationSupport {
 

@@ -1,5 +1,7 @@
 package com.ai.agent;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.agent.config.ChatAgentProperties;
@@ -8,16 +10,20 @@ import com.ai.agent.model.AgentToolResult;
 import com.ai.agent.registry.AgentToolGateway;
 import com.ai.agent.registry.AgentToolRegistry;
 import com.ai.agent.support.ChatConversationSupport;
+import com.ai.constant.AiUsageSceneConstant;
 import com.ai.model.dto.chat.ChatMessageSegment;
+import com.ai.model.dto.ops.AiUsageRecord;
 import com.ai.model.entity.ChatConversation;
 import com.ai.model.entity.User;
 import com.ai.model.enums.ChatMessageSourceEnum;
 import com.ai.model.enums.MessageTypeEnum;
 import com.ai.model.vo.chat.ChatMessageVO;
 import com.ai.model.vo.chat.ChatStreamEvent;
+import com.ai.service.AiUsageLogService;
 import com.ai.service.ChatConversationService;
 import com.ai.service.ChatMessageService;
 import com.ai.service.UserService;
+import com.ai.utils.AiUsageTokenExtractor;
 import com.ai.utils.ChatMessageUtils;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
@@ -45,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@ConditionalOnModule("chat")
 @Service
 @Slf4j
 public class ChatAgentFacade {
@@ -53,6 +60,9 @@ public class ChatAgentFacade {
 
     @Resource
     private ChatAgentProperties chatAgentProperties;
+
+    @Resource
+    private com.ai.setting.runtime.ChatRuntimeSettings chatRuntimeSettings;
 
     @Resource
     private AgentToolRegistry agentToolRegistry;
@@ -72,9 +82,15 @@ public class ChatAgentFacade {
     @Resource
     private UserService userService;
 
+    @Resource
+    private AiUsageLogService aiUsageLogService;
+
     @Autowired(required = false)
     @Qualifier("agentChatModel")
     private ChatModel agentChatModel;
+
+    @Resource
+    private com.ai.setting.IntegrationOpenAiModelFactory integrationOpenAiModelFactory;
 
     public Flux<ChatStreamEvent> chat(Long conversationId, String configId, String message,
                                       List<ChatMessageSegment> segments, HttpServletRequest request) {
@@ -85,8 +101,9 @@ public class ChatAgentFacade {
         if (segments != null && !segments.isEmpty()) {
             throw new ServerErrorException("Agent 模式暂不支持富消息段，请使用纯文本 message", null);
         }
-        if (agentChatModel == null) {
-            throw new ServerErrorException("Agent 模型未配置，请检查 chat.agent.enabled 与 langchain4j.open-ai.agent-chat-model", null);
+        ChatModel chatModel = resolveAgentChatModel();
+        if (chatModel == null) {
+            throw new ServerErrorException("Agent 模型未配置，请检查 chat.agent.enabled 与集成设置 / langchain4j.open-ai.agent-chat-model", null);
         }
 
         ChatConversation conversation = chatConversationSupport.resolveConversation(
@@ -113,24 +130,41 @@ public class ChatAgentFacade {
                 .request(request)
                 .build();
 
+        ChatModel modelForLoop = chatModel;
         return Flux.<ChatStreamEvent>create(sink -> runAgentLoop(
-                sink, toolContext, persistContent, effectiveConversationId, loginUser.getId()))
+                sink, toolContext, persistContent, effectiveConversationId, loginUser.getId(), modelForLoop))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
+    private ChatModel resolveAgentChatModel() {
+        try {
+            return integrationOpenAiModelFactory.agentChatModel();
+        } catch (Exception e) {
+            return agentChatModel;
+        }
+    }
+
     private void runAgentLoop(FluxSink<ChatStreamEvent> sink, AgentToolContext toolContext,
-                              String userMessage, Long conversationId, Long userId) {
+                              String userMessage, Long conversationId, Long userId, ChatModel chatModel) {
         try {
             List<ChatMessage> messages = buildInitialMessages(conversationId, userId, userMessage);
             List<ToolSpecification> toolSpecifications = agentToolRegistry.toolSpecifications();
             int step = 0;
             String finalText = null;
 
-            while (step < chatAgentProperties.getMaxSteps()) {
-                ChatResponse response = agentChatModel.chat(ChatRequest.builder()
-                        .messages(messages)
-                        .toolSpecifications(toolSpecifications)
-                        .build());
+            while (step < chatRuntimeSettings.agentMaxSteps()) {
+                long startNs = System.nanoTime();
+                ChatResponse response;
+                try {
+                    response = chatModel.chat(ChatRequest.builder()
+                            .messages(messages)
+                            .toolSpecifications(toolSpecifications)
+                            .build());
+                    recordAgentUsage(userId, conversationId, true, startNs, response, null);
+                } catch (Exception e) {
+                    recordAgentUsage(userId, conversationId, false, startNs, null, e.getMessage());
+                    throw e;
+                }
                 AiMessage aiMessage = response.aiMessage();
                 if (aiMessage == null) {
                     sink.error(new ServerErrorException("Agent 模型返回为空", null));
@@ -193,7 +227,7 @@ public class ChatAgentFacade {
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(SystemMessage.from(chatAgentProperties.getSystemPrompt()));
         List<ChatMessageVO> history = chatMessageService.listLatest(
-                conversationId, userId, chatAgentProperties.getHistoryLimit());
+                conversationId, userId, chatRuntimeSettings.agentHistoryLimit());
         for (ChatMessageVO item : history) {
             if (MessageTypeEnum.USER.getValue().equals(item.getMessageType())
                     && StrUtil.isNotBlank(item.getContent())) {
@@ -233,5 +267,24 @@ public class ChatAgentFacade {
                 ChatMessageSourceEnum.AGENT.getValue()
         );
         chatConversationService.touchLastMessageAt(conversationId);
+    }
+
+    private void recordAgentUsage(Long userId, Long conversationId, boolean success, long startNs,
+                                  ChatResponse response, String errorMessage) {
+        AiUsageTokenExtractor.Tokens tokens = AiUsageTokenExtractor.from(response);
+        long elapsedMs = Math.max(0L, (System.nanoTime() - startNs) / 1_000_000L);
+        aiUsageLogService.record(AiUsageRecord.builder()
+                .userId(userId)
+                .scene(AiUsageSceneConstant.AGENT)
+                .conversationId(conversationId)
+                .modelName("agent")
+                .promptTokens(tokens.promptTokens())
+                .completionTokens(tokens.completionTokens())
+                .totalTokens(tokens.totalTokens())
+                .responseTimeMs(elapsedMs)
+                .status(success ? AiUsageSceneConstant.STATUS_SUCCESS : AiUsageSceneConstant.STATUS_ERROR)
+                .errorMessage(errorMessage)
+                .requestSummary("agent step")
+                .build());
     }
 }

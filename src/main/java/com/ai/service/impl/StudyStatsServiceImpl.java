@@ -1,10 +1,12 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.constant.StudyConstant;
-import com.ai.mapper.StudyFocusSessionMapper;
-import com.ai.mapper.StudyHabitCheckLogMapper;
-import com.ai.mapper.StudyHabitMapper;
-import com.ai.mapper.StudyTaskMapper;
+import com.ai.mapper.study.StudyFocusSessionMapper;
+import com.ai.mapper.study.StudyHabitCheckLogMapper;
+import com.ai.mapper.study.StudyHabitMapper;
+import com.ai.mapper.study.StudyTaskMapper;
 import com.ai.model.entity.StudyFocusSession;
 import com.ai.model.entity.StudyHabit;
 import com.ai.model.entity.StudyHabitCheckLog;
@@ -25,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@ConditionalOnModule("study")
 @Service
 public class StudyStatsServiceImpl implements StudyStatsService {
 

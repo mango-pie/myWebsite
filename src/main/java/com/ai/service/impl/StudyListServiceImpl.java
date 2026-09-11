@@ -1,12 +1,14 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.StudyConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.StudyListMapper;
-import com.ai.mapper.StudyTaskMapper;
+import com.ai.mapper.study.StudyListMapper;
+import com.ai.mapper.study.StudyTaskMapper;
 import com.ai.model.dto.study.StudyListAddRequest;
 import com.ai.model.dto.study.StudyListSortRequest;
 import com.ai.model.dto.study.StudyListUpdateRequest;
@@ -26,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("study")
 @Service
 public class StudyListServiceImpl extends ServiceImpl<StudyListMapper, StudyList> implements StudyListService {
 

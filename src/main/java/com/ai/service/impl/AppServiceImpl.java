@@ -1,5 +1,7 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
@@ -40,8 +42,9 @@ import java.util.stream.Collectors;
  * 应用 服务实现层。
  *
  */
+@ConditionalOnModule({"app-lab", "chat"})
 @Service
-public class AppServiceImpl extends ServiceImpl<com.ai.mapper.AppMapper, App> implements AppService {
+public class AppServiceImpl extends ServiceImpl<com.ai.mapper.app.AppMapper, App> implements AppService {
 
     @Resource
     private UserService userService;

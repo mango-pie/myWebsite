@@ -1,12 +1,14 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.model.entity.BlogPostTag;
 import com.ai.service.BlogPostTagService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
-import com.ai.mapper.BlogPostTagMapper;
+import com.ai.mapper.blog.BlogPostTagMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("blog")
 @Service
 public class BlogPostTagServiceImpl extends ServiceImpl<BlogPostTagMapper, BlogPostTag> implements BlogPostTagService {
 

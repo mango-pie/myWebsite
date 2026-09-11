@@ -1,14 +1,18 @@
 package com.ai.service.impl;
 
+import com.ai.config.ConditionalOnModule;
+
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.ai.constant.BizStatMetricConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.ChatMessageMapper;
+import com.ai.mapper.chat.ChatMessageMapper;
 import com.ai.model.entity.ChatMessage;
 import com.ai.model.enums.ChatMessageSourceEnum;
 import com.ai.model.enums.MessageTypeEnum;
 import com.ai.model.vo.chat.ChatMessageVO;
+import com.ai.service.BizStatDailyService;
 import com.ai.service.ChatConversationService;
 import com.ai.service.ChatMessageService;
 import com.mybatisflex.core.paginate.Page;
@@ -22,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@ConditionalOnModule("chat")
 @Service
 public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatMessage>
         implements ChatMessageService {
@@ -29,6 +34,9 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
     @Resource
     @Lazy
     private ChatConversationService chatConversationService;
+
+    @Resource
+    private BizStatDailyService bizStatDailyService;
 
     @Override
     public Long addMessage(Long conversationId, Long userId, String messageType, String content, String source) {
@@ -62,6 +70,9 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
                 .build();
         if (!this.save(message)) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "保存消息失败");
+        }
+        if (MessageTypeEnum.USER.getValue().equals(messageType)) {
+            bizStatDailyService.increment(BizStatMetricConstant.CHAT_MESSAGE_USER, 1);
         }
         return message.getId();
     }
