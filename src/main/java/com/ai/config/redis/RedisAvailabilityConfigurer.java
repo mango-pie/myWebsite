@@ -4,8 +4,11 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -64,15 +67,52 @@ public final class RedisAvailabilityConfigurer {
         };
     }
 
+    /**
+     * 真正对 Redis 发送 RESP {@code PING} 并要求回复 {@code +PONG}。
+     * 只做 TCP connect 无法区分「真 Redis」与「仅接受连接但不应答的黑洞端口」
+     * （如被 VMware NAT / 其它服务占用的端口），后者会导致运行期每个请求在获取
+     * Redis 连接时无限阻塞。这里通过读到 +PONG 才判定可用，从根源避免该问题。
+     */
     private static boolean pingRedis(ConfigurableEnvironment environment) {
         String host = environment.getProperty("spring.data.redis.host", "127.0.0.1");
         int port = environment.getProperty("spring.data.redis.port", Integer.class, 6379);
+        String password = environment.getProperty("spring.data.redis.password", "");
         int timeoutMs = environment.getProperty("app.redis.ping-timeout-ms", Integer.class, 2000);
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(host, port), timeoutMs);
-            return true;
+            socket.setSoTimeout(timeoutMs);
+            OutputStream out = socket.getOutputStream();
+            InputStream in = socket.getInputStream();
+
+            if (password != null && !password.isBlank()) {
+                out.write(("AUTH " + password + "\r\n").getBytes(StandardCharsets.UTF_8));
+                out.flush();
+                readReply(in);
+            }
+
+            out.write("PING\r\n".getBytes(StandardCharsets.UTF_8));
+            out.flush();
+            String reply = readReply(in);
+            return reply.startsWith("+PONG");
         } catch (IOException e) {
             return false;
         }
+    }
+
+    /** 读取一行 RESP 回复（读到 CRLF 或超时/流结束为止）。 */
+    private static String readReply(InputStream in) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int b;
+        while ((b = in.read()) != -1) {
+            if (b == '\r') {
+                in.read(); // consume '\n'
+                break;
+            }
+            sb.append((char) b);
+            if (sb.length() > 64) {
+                break;
+            }
+        }
+        return sb.toString();
     }
 }

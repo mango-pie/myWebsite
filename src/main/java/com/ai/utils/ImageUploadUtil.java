@@ -4,6 +4,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Random;
@@ -79,5 +80,28 @@ public class ImageUploadUtil {
         file.transferTo(destFile);
 
         return filename;
+    }
+
+    /**
+     * 将客户端传入的 filename 解析到 {uploadRoot}/{userId}/ 下的普通文件路径。
+     * 拒绝路径穿越（..、分隔符、空字节）；解析失败返回 null。
+     */
+    public static Path resolveSafeUserFile(Path uploadRoot, Long userId, String filename) {
+        if (uploadRoot == null || userId == null || filename == null) {
+            return null;
+        }
+        String name = filename.trim();
+        if (name.isEmpty() || name.indexOf('\0') >= 0) {
+            return null;
+        }
+        if (name.contains("..") || name.contains("/") || name.contains("\\") || name.contains(":")) {
+            return null;
+        }
+        Path userDir = uploadRoot.toAbsolutePath().normalize().resolve(String.valueOf(userId)).normalize();
+        Path target = userDir.resolve(name).normalize();
+        if (!target.startsWith(userDir)) {
+            return null;
+        }
+        return target;
     }
 }
