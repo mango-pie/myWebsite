@@ -41,6 +41,10 @@ public final class RedisAvailabilityConfigurer {
             mergeAutoConfigureExclude(environment, props, REDIS_AUTO_CONFIG);
             mergeAutoConfigureExclude(environment, props, REDIS_REACTIVE_AUTO_CONFIG);
             mergeAutoConfigureExclude(environment, props, SESSION_AUTO_CONFIG);
+            // langchain4j-community-redis-starter 有独立自动装配，不走 RedisAutoConfiguration，
+            // 仍会注册连接工厂 → actuator redis 指示器存在且必然 DOWN，拖垮 /actuator/health。
+            // Redis 既然有意关闭，指示器一并停用。
+            props.put("management.health.redis.enabled", Boolean.FALSE.toString());
         }
 
         environment.getPropertySources().addFirst(new MapPropertySource("redisAvailability", props));
