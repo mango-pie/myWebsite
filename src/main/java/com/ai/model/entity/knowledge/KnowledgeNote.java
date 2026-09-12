@@ -9,6 +9,7 @@ import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -30,6 +31,13 @@ public class KnowledgeNote implements Serializable {
     private String status;
     private String publishStatus;
     private String indexStatus;
+    /** 复习状态 NEW/REVIEWING/MASTERED */
+    private String reviewStatus;
+    /** 0 正常 / 1 已归档 */
+    private Integer isArchived;
+    /** 与学习目标对齐度 0.00~1.00 */
+    private BigDecimal alignmentScore;
+    private String alignmentNote;
     private String errorMsg;
     private Integer viewCount;
     private LocalDateTime lastDistilledAt;

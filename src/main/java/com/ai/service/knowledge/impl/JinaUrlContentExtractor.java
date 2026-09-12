@@ -7,6 +7,7 @@ import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.service.IntegrationCredentialsService;
 import com.ai.service.knowledge.ContentExtractor;
+import com.ai.service.knowledge.support.UrlSafetyValidator;
 import com.ai.setting.runtime.KnowledgeRuntimeSettings;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -29,11 +30,17 @@ public class JinaUrlContentExtractor implements ContentExtractor {
             "^https?://github\\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.*)$",
             Pattern.CASE_INSENSITIVE);
 
+    /** 重定向最大跳数（SSRF 防护：限制跟随链） */
+    private static final int MAX_REDIRECTS = 5;
+
     @Resource
     private IntegrationCredentialsService credentials;
 
     @Resource
     private KnowledgeRuntimeSettings knowledgeRuntimeSettings;
+
+    @Resource
+    private UrlSafetyValidator urlSafetyValidator;
 
     private volatile HttpClient httpClient;
     private volatile int cachedTimeoutSeconds = -1;
@@ -47,8 +54,10 @@ public class JinaUrlContentExtractor implements ContentExtractor {
     public String extract(String source) {
         try {
             String normalized = normalizeSourceUrl(source);
+            // 协议白名单：所有抓取统一校验
+            urlSafetyValidator.checkProtocol(normalized);
 
-            // GitHub raw 可直连，避免 Jina 对 blob 页 403
+            // GitHub raw 可直连，避免 Jina 对 blob 页 403；直连做完整 SSRF 校验
             if (normalized.contains("raw.githubusercontent.com")) {
                 return fetchDirect(normalized);
             }
@@ -98,20 +107,50 @@ public class JinaUrlContentExtractor implements ContentExtractor {
     }
 
     private String fetchDirect(String url) throws Exception {
+        // 直连前完整 SSRF 校验（协议 + 主机 + 全部解析 IP）
+        urlSafetyValidator.checkDirectFetch(url);
         int timeout = effectiveTimeoutSeconds();
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(timeout))
-                .header("User-Agent", "Ai-Backend-Knowledge/1.0")
-                .header("Accept", "text/plain, text/markdown, */*")
-                .GET()
+        HttpClient client = httpClient().newBuilder()
+                .followRedirects(HttpClient.Redirect.NEVER)
                 .build();
-        HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR,
-                    "直连抓取失败：" + response.statusCode() + "，URL=" + url);
+        String current = url;
+        for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
+            urlSafetyValidator.checkDirectFetch(current);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(current))
+                    .timeout(Duration.ofSeconds(timeout))
+                    .header("User-Agent", "Ai-Backend-Knowledge/1.0")
+                    .header("Accept", "text/plain, text/markdown, */*")
+                    .GET()
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (isRedirect(response.statusCode())) {
+                String location = response.headers().firstValue("Location").orElse(null);
+                if (StrUtil.isBlank(location)) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "重定向缺少 Location 头，URL=" + current);
+                }
+                current = resolveRedirect(current, location);
+                continue;
+            }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR,
+                        "直连抓取失败：" + response.statusCode() + "，URL=" + url);
+            }
+            return response.body();
         }
-        return response.body();
+        throw new BusinessException(ErrorCode.OPERATION_ERROR, "重定向超过 " + MAX_REDIRECTS + " 次，已拦截，URL=" + url);
+    }
+
+    private boolean isRedirect(int status) {
+        return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+    }
+
+    private String resolveRedirect(String current, String location) throws Exception {
+        URI base = URI.create(current);
+        URI resolved = base.resolve(location);
+        String next = resolved.toString();
+        urlSafetyValidator.checkProtocol(next);
+        return next;
     }
 
     private HttpClient httpClient() {

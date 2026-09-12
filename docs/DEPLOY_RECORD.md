@@ -98,7 +98,7 @@ scp -i "E:/Quark/ai.pem" -o StrictHostKeyChecking=no 本地文件 root@121.43.17
 |------|------|
 | SSH 密钥 | `E:\Quark\ai.pem` |
 | 前端源码 | `E:\java_demo\Ai-scene\AI-backend\AI-frontend\` |
-| 后端源码 | `https://github.com/mango-pie/Ai-Backend`（clone 到 `/tmp` 构建） |
+| 后端源码 | `https://github.com/mango-pie/myWebsite`（clone 到 `/tmp` 构建） |
 
 ---
 
@@ -139,9 +139,9 @@ scp -i "E:/Quark/ai.pem" -o StrictHostKeyChecking=no -r dist/* root@121.43.177.2
 
 ```bash
 # 1. 拉取 + 本地构建
-cd /tmp && rm -rf Ai-Backend
-git clone https://github.com/mango-pie/Ai-Backend.git /tmp/Ai-Backend
-cd /tmp/Ai-Backend
+cd /tmp && rm -rf myWebsite
+git clone https://github.com/mango-pie/myWebsite.git /tmp/myWebsite
+cd /tmp/myWebsite
 mvn clean package -DskipTests -q
 
 # 2. 上传

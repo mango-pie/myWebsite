@@ -34,8 +34,9 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -46,6 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentMapper, KnowledgeDocument>
@@ -53,6 +55,9 @@ public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentM
 
     private static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
     private static final Set<String> ALLOWED_EXT = Set.of("pdf", "docx", "txt", "md", "markdown");
+
+    @Resource
+    private TransactionTemplate transactionTemplate;
 
     @Resource
     private KnowledgeBaseService knowledgeBaseService;
@@ -88,7 +93,6 @@ public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentM
     private OpsAuditLogService opsAuditLogService;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeDocumentVO upload(Long knowledgeBaseId, MultipartFile file, Long userId) {
         KnowledgeBase knowledgeBase = knowledgeBaseService.requireOwned(knowledgeBaseId, userId);
         validateFile(file);
@@ -101,13 +105,31 @@ public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentM
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "读取上传文件失败");
         }
+        // MinIO 远程 IO 不放进事务；落库失败时补偿删除已上传对象
         knowledgeStorageService.upload(bucket, objectKey, bytes, file.getContentType());
+        KnowledgeDocument document;
+        try {
+            document = transactionTemplate.execute(status ->
+                    doUploadPersist(knowledgeBase, file, userId, bucket, objectKey, ext));
+        } catch (RuntimeException e) {
+            try {
+                knowledgeStorageService.delete(bucket, objectKey);
+            } catch (Exception cleanupError) {
+                log.warn("Rollback upload cleanup failed, bucket={}, key={}", bucket, objectKey, cleanupError);
+            }
+            throw e;
+        }
+        return toVO(document);
+    }
 
+    private KnowledgeDocument doUploadPersist(KnowledgeBase knowledgeBase, MultipartFile file, Long userId,
+                                              String bucket, String objectKey, String ext) {
+        String fileName = file.getOriginalFilename();
         LocalDateTime now = LocalDateTime.now();
         SourceDocument source = new SourceDocument();
-        source.setTitle(file.getOriginalFilename());
+        source.setTitle(fileName);
         source.setUserId(userId);
-        source.setKnowledgeBaseId(knowledgeBaseId);
+        source.setKnowledgeBaseId(knowledgeBase.getId());
         source.setSourceType("FILE");
         source.setBucketName(bucket);
         source.setObjectKey(objectKey);
@@ -118,10 +140,10 @@ public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentM
         sourceDocumentMapper.insert(source);
 
         KnowledgeDocument document = new KnowledgeDocument();
-        document.setKnowledgeBaseId(knowledgeBaseId);
+        document.setKnowledgeBaseId(knowledgeBase.getId());
         document.setUserId(userId);
         document.setSourceDocumentId(source.getId());
-        document.setFileName(file.getOriginalFilename());
+        document.setFileName(fileName);
         document.setFileType(ext.toUpperCase());
         document.setFileSize(file.getSize());
         document.setBucketName(bucket);
@@ -141,7 +163,7 @@ public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentM
         update.setDocumentCount(knowledgeBase.getDocumentCount() == null ? 1 : knowledgeBase.getDocumentCount() + 1);
         update.setUpdateTime(now);
         knowledgeBaseService.updateById(update);
-        return toVO(document);
+        return document;
     }
 
     @Override
@@ -172,32 +194,54 @@ public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentM
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public boolean delete(Long id, Long userId) {
         KnowledgeDocument document = requireOwned(id, userId);
-        vectorStoreService.deleteByDocumentId(document.getId());
-        knowledgeStorageService.delete(document.getBucketName(), document.getObjectKey());
-        boolean removed = this.removeById(document.getId());
-        if (removed) {
-            KnowledgeBase knowledgeBase = knowledgeBaseService.getById(document.getKnowledgeBaseId());
-            if (knowledgeBase != null) {
-                int count = knowledgeBase.getDocumentCount() == null ? 0 : knowledgeBase.getDocumentCount();
-                KnowledgeBase update = new KnowledgeBase();
-                update.setId(knowledgeBase.getId());
-                update.setDocumentCount(Math.max(0, count - 1));
-                update.setUpdateTime(LocalDateTime.now());
-                knowledgeBaseService.updateById(update);
+        // 先短事务软删本地（失败即整单回滚），外部存储在事务提交后再清理：
+        // 反过来先删 PG/MinIO，一旦本地落库失败，向量与文件已被销毁且不可恢复
+        Boolean removed = transactionTemplate.execute(status -> {
+            boolean removedInner = this.removeById(document.getId());
+            if (removedInner) {
+                KnowledgeBase knowledgeBase = knowledgeBaseService.getById(document.getKnowledgeBaseId());
+                if (knowledgeBase != null) {
+                    int count = knowledgeBase.getDocumentCount() == null ? 0 : knowledgeBase.getDocumentCount();
+                    KnowledgeBase update = new KnowledgeBase();
+                    update.setId(knowledgeBase.getId());
+                    update.setDocumentCount(Math.max(0, count - 1));
+                    update.setUpdateTime(LocalDateTime.now());
+                    knowledgeBaseService.updateById(update);
+                }
+                opsAuditLogService.audit(
+                        OpsAuditActionConstant.KNOWLEDGE_DOCUMENT_DELETE,
+                        userId,
+                        OpsAuditActionConstant.RESOURCE_KNOWLEDGE_DOCUMENT,
+                        String.valueOf(document.getId()),
+                        true,
+                        Map.of("knowledgeBaseId", document.getKnowledgeBaseId()),
+                        null);
             }
-            opsAuditLogService.audit(
-                    OpsAuditActionConstant.KNOWLEDGE_DOCUMENT_DELETE,
-                    userId,
-                    OpsAuditActionConstant.RESOURCE_KNOWLEDGE_DOCUMENT,
-                    String.valueOf(document.getId()),
-                    true,
-                    Map.of("knowledgeBaseId", document.getKnowledgeBaseId()),
-                    null);
+            return removedInner;
+        });
+        if (Boolean.TRUE.equals(removed)) {
+            cleanupExternalStores(document);
         }
-        return removed;
+        return Boolean.TRUE.equals(removed);
+    }
+
+    /**
+     * 事务提交后的外部存储清理：best-effort，失败仅告警（软删数据可重入清理，残留记录 bucket/key 人工对账）。
+     */
+    private void cleanupExternalStores(KnowledgeDocument document) {
+        try {
+            vectorStoreService.deleteByDocumentId(document.getId());
+        } catch (Exception e) {
+            log.warn("Delete vectors failed after document delete, documentId={}", document.getId(), e);
+        }
+        try {
+            knowledgeStorageService.delete(document.getBucketName(), document.getObjectKey());
+        } catch (Exception e) {
+            log.warn("Delete MinIO object failed after document delete, documentId={}, bucket={}, key={}",
+                    document.getId(), document.getBucketName(), document.getObjectKey(), e);
+        }
     }
 
     @Override
@@ -218,11 +262,12 @@ public class KnowledgeDocumentServiceImpl extends ServiceImpl<KnowledgeDocumentM
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeDocumentVO parse(Long id, Long userId) {
         KnowledgeDocument document = requireOwned(id, userId);
         updateParseStatus(document.getId(), "PARSING", null, null, null);
         try {
+            // MinIO 下载/向量写入均为外部 IO，不进事务；各状态更新独立提交，
+            // 失败路径的 FAILED 状态因此能真正落库（原事务模式下会被回滚吞掉）
             byte[] bytes = knowledgeStorageService.download(document.getBucketName(), document.getObjectKey());
             String rawText = readerService.read(bytes, document.getFileType());
             List<KnowledgeTextChunk> chunks = chunkService.split(rawText);

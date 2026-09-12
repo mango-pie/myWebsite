@@ -8,6 +8,7 @@ import com.ai.model.entity.HttpAccessLog;
 import com.ai.model.vo.ops.HttpAccessLogVO;
 import com.ai.service.HttpAccessLogService;
 import com.ai.setting.runtime.OpsRuntimeSettings;
+import com.ai.utils.BatchDeletes;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -33,6 +35,9 @@ public class HttpAccessLogServiceImpl implements HttpAccessLogService {
 
     @Resource
     private OpsRuntimeSettings opsRuntimeSettings;
+
+    @Resource(name = "opsLogExecutor")
+    private Executor opsLogExecutor;
 
     @Override
     public void record(String method, String path, Integer status, Long latencyMs,
@@ -57,7 +62,7 @@ public class HttpAccessLogServiceImpl implements HttpAccessLogService {
             } catch (Exception e) {
                 log.warn("Write http_access_log failed: {}", e.getMessage());
             }
-        });
+        }, opsLogExecutor);
     }
 
     @Override
@@ -94,8 +99,8 @@ public class HttpAccessLogServiceImpl implements HttpAccessLogService {
     public int purgeExpired() {
         int days = Math.max(1, opsRuntimeSettings.httpLogRetainDays());
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
-        return httpAccessLogMapper.deleteByQuery(QueryWrapper.create()
-                .lt(HttpAccessLog::getCreateTime, cutoff));
+        return BatchDeletes.purge(httpAccessLogMapper,
+                () -> QueryWrapper.create().lt(HttpAccessLog::getCreateTime, cutoff));
     }
 
     private LocalDate[] normalizeRange(LocalDate from, LocalDate to) {

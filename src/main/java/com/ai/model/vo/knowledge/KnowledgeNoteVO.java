@@ -18,6 +18,13 @@ public class KnowledgeNoteVO {
     private String status;
     private String publishStatus;
     private String indexStatus;
+    /** 复习状态 NEW/REVIEWING/MASTERED */
+    private String reviewStatus;
+    /** 0 正常 / 1 已归档 */
+    private Integer isArchived;
+    /** 与学习目标对齐度 0.00~1.00 */
+    private java.math.BigDecimal alignmentScore;
+    private String alignmentNote;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private LocalDateTime lastEditedAt;

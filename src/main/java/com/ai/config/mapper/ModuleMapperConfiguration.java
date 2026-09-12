@@ -54,6 +54,12 @@ public class ModuleMapperConfiguration {
     }
 
     @Configuration
+    @ConditionalOnModule("worklog")
+    @MapperScan("com.ai.mapper.worklog")
+    static class WorklogMapperConfig {
+    }
+
+    @Configuration
     @ConditionalOnModule("tts")
     @MapperScan("com.ai.mapper.tts")
     static class TtsMapperConfig {

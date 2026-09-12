@@ -21,5 +21,7 @@ public class KnowledgeSearchPreviewVO {
         private Double score;
         private String recommendReason;
         private java.util.List<String> riskFlags = new java.util.ArrayList<>();
+        /** 该 URL 已在库中（存在 source_document 记录），去重标注 */
+        private boolean alreadyIngested;
     }
 }

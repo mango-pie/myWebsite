@@ -5,12 +5,16 @@ import com.ai.model.enums.CodeGenTypeEnum;
 import com.ai.service.AiCodeGeneratorService;
 import jakarta.annotation.Resource;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import reactor.core.publisher.Flux;
 import java.util.List;
 import com.ai.core.AiCodeGeneratorFacade;
 
+// 需要完整 Spring 上下文（DB/Redis 等），归类为 integration，默认在 CI/本地 mvn verify 中跳过。
+// 需要时用 mvn -Dgroups=integration test 单独运行。
+@Tag("integration")
 @SpringBootTest
 class AiApplicationTests {
 

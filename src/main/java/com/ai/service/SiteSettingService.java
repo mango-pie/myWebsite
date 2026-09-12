@@ -38,4 +38,17 @@ public interface SiteSettingService {
      * 仅当 DB 存在覆盖时返回（敏感字段已解密）；无覆盖返回 empty。
      */
     java.util.Optional<String> findOverride(String module, String key);
+
+    /**
+     * 业务模块开关的 DB 覆盖值（modules 设置模块）。
+     *
+     * @return {@code true}/{@code false} 表示已覆盖；{@code null} 表示未覆盖（应回落 yml / 环境变量默认值）。
+     *         缺行绝不能当成 false，否则会误关全站模块。
+     */
+    Boolean getModuleSwitch(String moduleName);
+
+    /**
+     * 一次性读取全部模块开关覆盖（避免逐 key 查库）；仅含已覆盖项，key 为 kebab-case。
+     */
+    java.util.Map<String, Boolean> moduleSwitchOverrides();
 }

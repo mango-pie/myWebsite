@@ -49,7 +49,9 @@ public class AdminSiteSettingsController {
     @Resource
     private UserService userService;
 
-    @GetMapping("/modules")
+    // 路径用 /catalog 而非 /modules：Spring 路由中字面量优先于 /{module} 变量，
+    // 会导致 GET /admin/site-settings/modules 永远命中本端点，遮蔽 modules 设置模块的 values 读取。
+    @GetMapping("/catalog")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<List<SettingModuleVO>> listModules() {
         return ResultUtils.success(siteSettingService.listModules());

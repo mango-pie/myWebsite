@@ -17,6 +17,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
@@ -125,12 +127,12 @@ public class ImageUploadServiceImpl implements ImageUploadService {
         }
 
         try {
-            String filePath = resolveUploadPath() + userId + "/" + filename;
-            File file = new File(filePath);
-            if (file.exists() && file.isFile()) {
-                return file.delete();
+            Path target = ImageUploadUtil.resolveSafeUserFile(Paths.get(resolveUploadPath()), userId, filename);
+            if (target == null) {
+                return false;
             }
-            return false;
+            File file = target.toFile();
+            return file.isFile() && file.delete();
         } catch (Exception e) {
             e.printStackTrace();
             return false;

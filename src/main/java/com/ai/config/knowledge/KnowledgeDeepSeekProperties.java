@@ -24,8 +24,11 @@ public class KnowledgeDeepSeekProperties {
     /** 勾选后读取网页材料（低成本，默认 flash） */
     private String readingModel = "deepseek-v4-flash";
 
-    /** 基于物化材料重构精读 */
-    private String distillModel = "deepseek-v4-pro";
+    /** 基于物化材料重构精读（默认 flash；pro 仅用于发布/入库前的 polishForQuality） */
+    private String distillModel = "deepseek-v4-flash";
+
+    /** 发布博客 / 入库 RAG 前的质量精修模型 */
+    private String polishModel = "deepseek-v4-pro";
 
     private int maxResults = 8;
 

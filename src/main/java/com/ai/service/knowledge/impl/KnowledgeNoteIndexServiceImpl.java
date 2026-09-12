@@ -4,6 +4,7 @@ import com.ai.config.ConditionalOnModule;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.ai.constant.OpsAuditActionConstant;
 import com.ai.constant.knowledge.KnowledgeNoteConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
@@ -18,19 +19,23 @@ import com.ai.model.entity.knowledge.KnowledgeNote;
 import com.ai.model.entity.knowledge.SourceDocument;
 import com.ai.model.vo.knowledge.KnowledgeDocumentVO;
 import com.ai.model.vo.knowledge.KnowledgeTextChunk;
+import com.ai.service.OpsAuditLogService;
 import com.ai.service.knowledge.KnowledgeAiModelService;
 import com.ai.service.knowledge.KnowledgeBaseService;
 import com.ai.service.knowledge.KnowledgeChunkService;
 import com.ai.service.knowledge.KnowledgeNoteIndexService;
 import com.ai.service.knowledge.KnowledgeNoteService;
 import com.ai.service.knowledge.KnowledgeVectorStoreService;
+import com.ai.service.knowledge.support.KnowledgeQualityPolishService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @ConditionalOnModule("knowledge")
@@ -61,6 +66,19 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
     @Resource
     private KnowledgeVectorStoreService vectorStoreService;
 
+    @Resource
+    private KnowledgeQualityPolishService polishService;
+
+    @Resource
+    private OpsAuditLogService opsAuditLogService;
+
+    /** 入库 RAG 前用 pro 精修一版（模型分层），失败回退原稿 */
+    private String polishedContent(KnowledgeNote note, Long userId) {
+        return polishService.polish(
+                userId, note.getSourceDocumentId(), note.getDistilledMd(),
+                KnowledgeQualityPolishService.extractAgentQuery(note.getTags()));
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public KnowledgeDocumentVO indexToKnowledgeBase(Long noteId, KnowledgeNoteIndexRequest request, Long userId) {
@@ -76,7 +94,8 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
 
         LocalDateTime now = LocalDateTime.now();
         String fileName = StrUtil.blankToDefault(note.getTitle(), "精读笔记") + ".md";
-        byte[] bytes = note.getDistilledMd().getBytes(StandardCharsets.UTF_8);
+        String indexedContent = polishedContent(note, userId);
+        byte[] bytes = indexedContent.getBytes(StandardCharsets.UTF_8);
 
         KnowledgeDocument document = new KnowledgeDocument();
         document.setKnowledgeBaseId(knowledgeBaseId);
@@ -95,7 +114,7 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
         knowledgeDocumentMapper.insert(document);
 
         try {
-            List<KnowledgeTextChunk> chunks = chunkService.split(note.getDistilledMd());
+            List<KnowledgeTextChunk> chunks = chunkService.split(indexedContent);
             List<float[]> embeddings = aiModelService.embed(chunks.stream().map(KnowledgeTextChunk::content).toList());
             vectorStoreService.replaceChunks(document, chunks, embeddings);
 
@@ -128,6 +147,7 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
                 update.setUpdateTime(LocalDateTime.now());
                 knowledgeBaseService.updateById(update);
             }
+            auditIndex(note, document, false, userId);
             return toVO(document);
         } catch (BusinessException e) {
             markIndexFailed(note, document, e.getMessage());
@@ -159,14 +179,37 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
             document.setUpdateTime(now);
             knowledgeDocumentMapper.update(document);
 
-            List<KnowledgeTextChunk> chunks = chunkService.split(note.getDistilledMd());
-            List<float[]> embeddings = aiModelService.embed(chunks.stream().map(KnowledgeTextChunk::content).toList());
-            vectorStoreService.replaceChunks(document, chunks, embeddings);
+            // 差量返工：只重 embedding 内容变化的 chunk，不删全表重建
+            String indexedContent = polishedContent(note, userId);
+            List<KnowledgeTextChunk> newChunks = chunkService.split(indexedContent);
+            Map<Integer, String> existing = vectorStoreService.chunkContentsByIndex(document.getId());
+
+            List<Integer> removedIndexes = existing.keySet().stream()
+                    .filter(idx -> idx >= newChunks.size())
+                    .sorted()
+                    .toList();
+            List<KnowledgeTextChunk> toEmbed = new ArrayList<>();
+            List<Integer> toEmbedIndexes = new ArrayList<>();
+            for (int i = 0; i < newChunks.size(); i++) {
+                String content = newChunks.get(i).content();
+                if (!content.equals(existing.getOrDefault(i, ""))) {
+                    toEmbed.add(newChunks.get(i));
+                    toEmbedIndexes.add(i);
+                }
+            }
+            if (!toEmbed.isEmpty()) {
+                List<float[]> embeddings = aiModelService.embed(
+                        toEmbed.stream().map(KnowledgeTextChunk::content).toList());
+                vectorStoreService.upsertChunks(document, toEmbedIndexes, toEmbed, embeddings);
+            }
+            if (!removedIndexes.isEmpty()) {
+                vectorStoreService.deleteChunkIndexes(document.getId(), removedIndexes);
+            }
 
             document.setFileName(StrUtil.blankToDefault(note.getTitle(), "精读笔记") + ".md");
-            document.setFileSize((long) note.getDistilledMd().getBytes(StandardCharsets.UTF_8).length);
+            document.setFileSize((long) indexedContent.getBytes(StandardCharsets.UTF_8).length);
             document.setParseStatus("PARSED");
-            document.setChunkCount(chunks.size());
+            document.setChunkCount(newChunks.size());
             document.setParsedAt(now);
             document.setErrorMessage(null);
             document.setUpdateTime(LocalDateTime.now());
@@ -176,6 +219,7 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
             note.setLastIndexedAt(LocalDateTime.now());
             note.setUpdateTime(LocalDateTime.now());
             knowledgeNoteMapper.update(note);
+            auditIndex(note, document, true, userId);
             return toVO(document);
         } catch (BusinessException e) {
             note.setIndexStatus(KnowledgeNoteConstant.INDEX_FAILED);
@@ -188,6 +232,22 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
             knowledgeNoteMapper.update(note);
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "重建索引失败：" + e.getMessage());
         }
+    }
+
+    private void auditIndex(KnowledgeNote note, KnowledgeDocument document, boolean reindex, Long userId) {
+        java.util.Map<String, Object> detail = new java.util.LinkedHashMap<>();
+        detail.put("noteId", String.valueOf(note.getId()));
+        detail.put("documentId", String.valueOf(document.getId()));
+        detail.put("knowledgeBaseId", String.valueOf(document.getKnowledgeBaseId()));
+        detail.put("chunkCount", String.valueOf(document.getChunkCount() == null ? 0 : document.getChunkCount()));
+        opsAuditLogService.audit(
+                reindex ? OpsAuditActionConstant.READING_NOTE_REINDEX : OpsAuditActionConstant.READING_NOTE_INDEX,
+                userId,
+                OpsAuditActionConstant.RESOURCE_READING_NOTE,
+                String.valueOf(note.getId()),
+                true,
+                detail,
+                null);
     }
 
     private Long resolveKnowledgeBaseId(KnowledgeNoteIndexRequest request, Long userId) {

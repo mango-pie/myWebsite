@@ -186,19 +186,32 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
 
     @Override
     public User getLoginUser(HttpServletRequest request) {
-        // 先判断是否已登录
-        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
-        User currentUser = (User) userObj;
-        if (currentUser == null || currentUser.getId() == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
-        }
-        // 从数据库查询（追求性能的话可以注释，直接返回上述结果）
-        long userId = currentUser.getId();
-        currentUser = this.getById(userId);
+        User currentUser = getLoginUserPermitNull(request);
         if (currentUser == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
         return currentUser;
+    }
+
+    @Override
+    public User getLoginUserPermitNull(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        // EchoBot / 桌宠：Bearer device token 已由 PetDeviceAuthFilter 解析
+        Object petUser = request.getAttribute(com.ai.constant.PetAuthConstant.PET_LOGIN_USER_ATTR);
+        if (petUser instanceof User currentUser && currentUser.getId() != null) {
+            return this.getById(currentUser.getId());
+        }
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        if (session == null) {
+            return null;
+        }
+        Object userObj = session.getAttribute(USER_LOGIN_STATE);
+        if (!(userObj instanceof User currentUser) || currentUser.getId() == null) {
+            return null;
+        }
+        return this.getById(currentUser.getId());
     }
 
     @Override

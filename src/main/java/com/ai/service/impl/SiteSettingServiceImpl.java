@@ -1,6 +1,7 @@
 package com.ai.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.ai.config.AppModuleProperties;
 import com.ai.constant.OpsAuditActionConstant;
 import com.ai.constant.SiteSettingAuditConstant;
 import com.ai.constant.SiteSettingConstant;
@@ -288,6 +289,34 @@ public class SiteSettingServiceImpl implements SiteSettingService {
         }
         String text = String.valueOf(decoded);
         return StrUtil.isBlank(text) ? Optional.empty() : Optional.of(text);
+    }
+
+    @Override
+    public Boolean getModuleSwitch(String moduleName) {
+        if (moduleName == null || moduleName.isBlank()) {
+            return null;
+        }
+        String key = AppModuleProperties.normalizeKey(moduleName);
+        Map<String, String> dbRaw = loadDbRaw(SiteSettingConstant.MODULE_MODULES);
+        String stored = dbRaw.get(key);
+        if (StrUtil.isBlank(stored)) {
+            return null;
+        }
+        return SettingValueCodec.toBool(stored);
+    }
+
+    @Override
+    public Map<String, Boolean> moduleSwitchOverrides() {
+        Map<String, String> dbRaw = loadDbRaw(SiteSettingConstant.MODULE_MODULES);
+        Map<String, Boolean> overrides = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : dbRaw.entrySet()) {
+            if (StrUtil.isBlank(entry.getValue())) {
+                continue;
+            }
+            overrides.put(AppModuleProperties.normalizeKey(entry.getKey()),
+                    SettingValueCodec.toBool(entry.getValue()));
+        }
+        return overrides;
     }
 
     private Object resolveValue(String moduleCode, String key) {

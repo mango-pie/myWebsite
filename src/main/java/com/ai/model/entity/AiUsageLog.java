@@ -35,6 +35,9 @@ public class AiUsageLog implements Serializable {
     @Column("conversation_id")
     private Long conversationId;
 
+    @Column("job_id")
+    private Long jobId;
+
     @Column("model_name")
     private String modelName;
 

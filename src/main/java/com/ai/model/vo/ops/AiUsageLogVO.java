@@ -16,6 +16,7 @@ public class AiUsageLogVO {
     private Long userId;
     private String scene;
     private Long conversationId;
+    private Long jobId;
     private String modelName;
     private Integer promptTokens;
     private Integer completionTokens;

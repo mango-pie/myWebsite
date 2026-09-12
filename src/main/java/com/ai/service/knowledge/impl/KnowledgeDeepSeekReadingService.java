@@ -7,9 +7,11 @@ import com.ai.config.knowledge.KnowledgeDeepSeekProperties;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.service.IntegrationCredentialsService;
+import com.ai.service.knowledge.support.KnowledgeMaterialCacheStore;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -28,12 +30,14 @@ import java.util.Set;
 /**
  * DeepSeek 官方联网能力：按用户勾选 URL 读取材料，并基于物化材料重构精读。
  */
+@Slf4j
 @ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeDeepSeekReadingService {
 
     private static final int MIN_BODY_CHARS = 200;
     private static final int MATERIALIZE_MAX_TOKENS = 32768;
+    /** 材料包压缩目标：reading 输出约输入 20%~30% */
 
     private static final String[] WEB_SEARCH_TOOL_TYPES = {
             "web_search_20260209",
@@ -49,9 +53,85 @@ public class KnowledgeDeepSeekReadingService {
     @Resource
     private ObjectMapper objectMapper;
 
+    @Resource
+    private KnowledgeMaterialCacheStore materialCacheStore;
+
     public MaterialBundle materialize(List<String> urls, String agentQuery) {
         if (urls == null || urls.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "urls 不能为空");
+        }
+        // 已缓存 URL 直接复用（30 天），只对未缓存 URL 发起模型调用
+        List<MaterialSource> cached = new ArrayList<>();
+        List<String> uncached = new ArrayList<>();
+        for (String url : urls) {
+            String json = materialCacheStore.get(url);
+            if (json != null) {
+                try {
+                    MaterialSource source = objectMapper.readValue(json, MaterialSource.class);
+                    cached.add(source);
+                    continue;
+                } catch (Exception e) {
+                    log.debug("Material cache parse failed, url={}", url, e);
+                }
+            }
+            uncached.add(url);
+        }
+
+        List<MaterialSource> used = new ArrayList<>(cached.stream()
+                .filter(s -> "OK".equals(s.status()) && StrUtil.isNotBlank(s.bodyMarkdown()) && s.bodyMarkdown().trim().length() >= MIN_BODY_CHARS)
+                .toList());
+        List<MaterialSource> failed = new ArrayList<>(cached.stream()
+                .filter(s -> !"OK".equals(s.status()) || StrUtil.isBlank(s.bodyMarkdown()) || s.bodyMarkdown().trim().length() < MIN_BODY_CHARS)
+                .toList());
+
+        if (!uncached.isEmpty()) {
+            MaterialBundle fresh = materializeRemote(uncached, agentQuery);
+            for (MaterialSource source : fresh.usedSources()) {
+                materialCacheStore.put(source.url(), materialCacheStore.serialize(source));
+            }
+            used.addAll(fresh.usedSources());
+            failed.addAll(fresh.failedSources());
+        }
+
+        // 保持与请求顺序一致：used 在前 failed 在后（每 URL 只出现一次）
+        Set<String> seen = new HashSet<>();
+        List<MaterialSource> mergedUsed = new ArrayList<>();
+        List<MaterialSource> mergedFailed = new ArrayList<>();
+        for (String url : urls) {
+            if (!seen.add(url)) {
+                continue;
+            }
+            for (MaterialSource s : used) {
+                if (!seen.contains(s.url()) && url.equals(s.url())) {
+                    mergedUsed.add(s);
+                    seen.add(url);
+                    break;
+                }
+            }
+            for (MaterialSource s : failed) {
+                if (!seen.contains(s.url()) && url.equals(s.url())) {
+                    mergedFailed.add(s);
+                    seen.add(url);
+                    break;
+                }
+            }
+        }
+        for (MaterialSource s : used) {
+            if (!seen.contains(s.url())) {
+                mergedUsed.add(s);
+            }
+        }
+        for (MaterialSource s : failed) {
+            if (!seen.contains(s.url())) {
+                mergedFailed.add(s);
+            }
+        }
+        return new MaterialBundle(mergedUsed, mergedFailed);
+    }
+
+    private MaterialBundle materializeRemote(List<String> urls, String agentQuery) {
+        if (urls.isEmpty()) {
+            return new MaterialBundle(List.of(), List.of());
         }
         BusinessException lastError = null;
         for (String toolType : WEB_SEARCH_TOOL_TYPES) {
@@ -82,7 +162,7 @@ public class KnowledgeDeepSeekReadingService {
         }
         try {
             JsonNode root = callMessages(
-                    effectiveModel(properties.getDistillModel(), "deepseek-v4-pro"),
+                    effectiveModel(properties.getDistillModel(), "deepseek-v4-flash"),
                     systemPrompt,
                     "请只基于以下已物化材料重构一篇 Markdown 精读文章：\n\n" + materialText,
                     maxTokens == null || maxTokens <= 0 ? 4096 : maxTokens,
@@ -98,6 +178,60 @@ public class KnowledgeDeepSeekReadingService {
         } catch (Exception e) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "DeepSeek 精读重构异常：" + e.getMessage());
         }
+    }
+
+    /**
+     * 质量精修（pro 模型）：仅用于发布博客 / 入库 RAG 前的最后一版。
+     * 失败自动降级：先试 flash 一次，仍失败则原样返回草稿，保证链路不空转。
+     */
+    public String polishForQuality(String draftMarkdown, String materialText, String agentQuery) {
+        if (StrUtil.isBlank(draftMarkdown)) {
+            return draftMarkdown;
+        }
+        String systemPrompt = """
+                你是出版级技术精读编辑。对用户提供的精读草稿做最后一版质量精修：
+                1. 修正事实 / 表述错误，但不得新增材料之外的内容。
+                2. 保持 [srcN] 溯源标注不变。
+                3. 保持 Markdown 结构，标题层级、代码块、配置项原样保留。
+                4. 语言精炼、逻辑连贯；保留「参考来源」。
+                5. 输出 Markdown，不要解释。
+                学习目标：%s
+                材料（供核对）：
+                %s
+                """.formatted(StrUtil.blankToDefault(agentQuery, "无明确目标"),
+                materialText == null ? "" : materialText);
+        String userPrompt = "精读草稿：\n" + draftMarkdown;
+        try {
+            JsonNode root = callMessages(
+                    effectiveModel(properties.getPolishModel(), "deepseek-v4-pro"),
+                    systemPrompt,
+                    userPrompt,
+                    8192,
+                    0.2,
+                    null);
+            String text = extractAllText(root.path("content"));
+            if (StrUtil.isNotBlank(text)) {
+                return text.trim();
+            }
+        } catch (Exception e) {
+            log.debug("Polish with pro model failed, try flash: {}", e.getMessage());
+        }
+        try {
+            JsonNode root = callMessages(
+                    effectiveModel(properties.getReadingModel(), "deepseek-v4-flash"),
+                    systemPrompt,
+                    userPrompt,
+                    8192,
+                    0.2,
+                    null);
+            String text = extractAllText(root.path("content"));
+            if (StrUtil.isNotBlank(text)) {
+                return text.trim();
+            }
+        } catch (Exception e) {
+            log.warn("Polish fallback failed, keep draft: {}", e.getMessage());
+        }
+        return draftMarkdown;
     }
 
     private JsonNode callMessages(String model,
@@ -160,7 +294,7 @@ public class KnowledgeDeepSeekReadingService {
         if (parsed == null) {
             if (selectedUrls.size() == 1 && StrUtil.isNotBlank(text) && text.length() >= MIN_BODY_CHARS) {
                 String url = selectedUrls.get(0);
-                return new MaterialBundle(List.of(new MaterialSource(url, url, "OK", text.trim(), "")), List.of());
+                return new MaterialBundle(List.of(new MaterialSource("src1", url, url, "OK", text.trim(), "", List.of(), List.of(), "", List.of())), List.of());
             }
             return allFailed(selectedUrls, "PARSE_ERROR", "DeepSeek 读取结果未返回可解析的材料 JSON");
         }
@@ -173,6 +307,7 @@ public class KnowledgeDeepSeekReadingService {
         List<MaterialSource> used = new ArrayList<>();
         List<MaterialSource> failed = new ArrayList<>();
         Set<String> covered = new HashSet<>();
+        int autoRef = 0;
         for (JsonNode item : sourcesNode) {
             String returnedUrl = firstNonBlank(textOf(item, "url"), textOf(item, "sourceUrl"));
             String matchedUrl = matchSelectedUrl(returnedUrl, selectedUrls);
@@ -184,26 +319,68 @@ public class KnowledgeDeepSeekReadingService {
             String title = StrUtil.blankToDefault(textOf(item, "title"), matchedUrl);
             String body = firstNonBlank(textOf(item, "bodyMarkdown"), textOf(item, "markdown"), textOf(item, "body"));
             String reason = firstNonBlank(textOf(item, "reason"), textOf(item, "errorMessage"));
+            String srcRef = StrUtil.blankToDefault(textOf(item, "sourceRef"), "src" + (++autoRef));
+            List<String> keyPoints = stringList(item, "keyPoints");
+            List<String> keyQuotes = stringList(item, "keyQuotes");
+            String conclusion = textOf(item, "conclusion");
+            List<String> conflicts = stringList(item, "conflicts");
+            if (StrUtil.isBlank(body) && !keyPoints.isEmpty()) {
+                body = composeCompressedBody(keyPoints, keyQuotes, conclusion);
+            }
             if (!"OK".equals(status) || StrUtil.isBlank(body) || body.trim().length() < MIN_BODY_CHARS) {
-                failed.add(new MaterialSource(matchedUrl, title, "FAILED", "",
-                        StrUtil.blankToDefault(reason, "AI 读取正文为空或过短")));
+                failed.add(new MaterialSource(srcRef, matchedUrl, title, "FAILED", "",
+                        StrUtil.blankToDefault(reason, "AI 读取正文为空或过短"), keyPoints, keyQuotes, conclusion, conflicts));
             } else {
-                used.add(new MaterialSource(matchedUrl, title, "OK", body.trim(), ""));
+                used.add(new MaterialSource(srcRef, matchedUrl, title, "OK", body.trim(), "", keyPoints, keyQuotes, conclusion, conflicts));
             }
         }
 
         for (String url : selectedUrls) {
             if (!covered.contains(url)) {
-                failed.add(new MaterialSource(url, url, "FAILED", "", "AI 读取结果未覆盖该 URL"));
+                failed.add(new MaterialSource("src" + (++autoRef), url, url, "FAILED", "", "AI 读取结果未覆盖该 URL", List.of(), List.of(), "", List.of()));
             }
         }
         return new MaterialBundle(used, failed);
     }
 
+    private String composeCompressedBody(List<String> keyPoints, List<String> keyQuotes, String conclusion) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("### 要点\n");
+        for (String p : keyPoints) {
+            sb.append("- ").append(p).append('\n');
+        }
+        if (keyQuotes != null && !keyQuotes.isEmpty()) {
+            sb.append("\n### 关键引文\n");
+            for (String q : keyQuotes) {
+                sb.append("> ").append(q).append('\n');
+            }
+        }
+        if (StrUtil.isNotBlank(conclusion)) {
+            sb.append("\n**结论：**").append(conclusion).append('\n');
+        }
+        return sb.toString();
+    }
+
+    private List<String> stringList(JsonNode node, String field) {
+        List<String> list = new ArrayList<>();
+        JsonNode arr = node.path(field);
+        if (arr.isArray()) {
+            for (JsonNode n : arr) {
+                String v = n.asText("");
+                if (StrUtil.isNotBlank(v)) {
+                    list.add(v.trim());
+                }
+            }
+        }
+        return list;
+    }
+
     private MaterialBundle allFailed(List<String> urls, String reasonCode, String reason) {
-        List<MaterialSource> failed = urls.stream()
-                .map(url -> new MaterialSource(url, url, reasonCode, "", reason))
-                .toList();
+        List<MaterialSource> failed = new ArrayList<>();
+        int i = 0;
+        for (String url : urls) {
+            failed.add(new MaterialSource("src" + (++i), url, url, reasonCode, "", reason, List.of(), List.of(), "", List.of()));
+        }
         return new MaterialBundle(List.of(), failed);
     }
 
@@ -237,22 +414,27 @@ public class KnowledgeDeepSeekReadingService {
 
     private String materializeSystemPrompt() {
         return """
-                你是网页材料读取助手。必须只阅读用户给出的 URL，并把每个 URL 的正文材料物化为 Markdown。
+                你是网页材料压缩读取助手。必须只阅读用户给出的 URL，并把每个 URL 的正文压缩为「要点 + 关键引文」材料包。
                 输出必须是严格 JSON，不要输出 Markdown 包裹，不要解释：
                 {
                   "sources": [
                     {
+                      "sourceRef": "src1",
                       "url": "原 URL",
                       "title": "页面标题",
                       "status": "OK 或 FAILED",
-                      "bodyMarkdown": "尽量完整的正文 Markdown；保留标题层级、代码块、配置项、命令、列表",
+                      "bodyMarkdown": "紧凑要点 Markdown，包含：标题层级、每个核心要点的 1~3 句表述、代码块/配置项/命令/列表(原样保留，不可改写)、必要的关键引文(加引号原文短引)",
+                      "keyPoints": ["要点1一句话", "要点2一句话"],
+                      "keyQuotes": ["关键引文1"],
+                      "conclusion": "全文结论 1~2 句",
+                      "conflicts": ["与其它来源可能矛盾的点，无则空数组"],
                       "reason": "FAILED 时说明原因，OK 时为空"
                     }
                   ]
                 }
                 要求：
-                1. sources 数量必须与用户 URL 数量一致。
-                2. OK 时 bodyMarkdown 不要写摘要，要尽量保留可阅读正文。
+                1. sources 数量必须与用户 URL 数量一致，sourceRef 依次为 src1、src2、...
+                2. bodyMarkdown 是压缩要点版，去掉冗长叙述与废话，输出长度控制在原文的 20%~30%；但代码块、配置项、命令必须原样保留。
                 3. 读不到正文时不要编造，status 写 FAILED。
                 4. 不要读取或引用用户未给出的 URL。
                 """;
@@ -344,6 +526,8 @@ public class KnowledgeDeepSeekReadingService {
     public record MaterialBundle(List<MaterialSource> usedSources, List<MaterialSource> failedSources) {
     }
 
-    public record MaterialSource(String url, String title, String status, String bodyMarkdown, String reason) {
+    public record MaterialSource(String srcRef, String url, String title, String status, String bodyMarkdown,
+                                 String reason, List<String> keyPoints, List<String> keyQuotes,
+                                 String conclusion, List<String> conflicts) {
     }
 }

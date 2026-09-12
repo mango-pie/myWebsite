@@ -1,14 +1,15 @@
 # 服务器完整部署手册
 
 > **给 Claude Code / 自动化工具**：请按章节顺序执行，每步确认成功后再继续。  
-> 环境：**Ubuntu 22.04+**、**2GB 内存**、**IP 访问**（暂不用域名/HTTPS）。
+> 环境：**Ubuntu 22.04+**、**2GB 内存**、**IP 访问**（暂不用域名/HTTPS）。  
+> **本机关 Redis / 向量库 / 应用工坊** 的默认与 env 清单见 **[DEPLOY_LOWMEM.md](./DEPLOY_LOWMEM.md)**。
 
 ## 仓库与产物
 
 | 项目 | GitHub | 说明 |
 |------|--------|------|
-| 前端 | https://github.com/mango-pie/Ai-frontend | 静态资源在 `AI-frontend/dist/` |
-| 后端 | https://github.com/mango-pie/Ai-Backend | JAR：`target/AI-0.0.1-SNAPSHOT.jar` |
+| 前端 | https://github.com/mango-pie/MyWebsite-ui |
+| 后端 | https://github.com/mango-pie/myWebsite | JAR：`target/AI-0.0.1-SNAPSHOT.jar` |
 
 ## 变量表（执行前替换）
 
@@ -119,7 +120,7 @@ echo "maxmemory-policy allkeys-lru" | sudo tee -a /etc/redis/redis.conf
 sudo systemctl restart redis-server
 ```
 
-不安装时后端 `app.redis.mode=auto` 会自动降级为内存 Session。
+不安装时请在 `/etc/ai-backend.env` 写 `APP_REDIS_MODE=off`（`prod` 已默认 off）。不要依赖 `auto` 去猜。
 
 ---
 
@@ -129,8 +130,8 @@ sudo systemctl restart redis-server
 
 ```bash
 cd /tmp
-git clone https://github.com/mango-pie/Ai-Backend.git
-cd Ai-Backend/src/main/resources/sql
+git clone https://github.com/mango-pie/myWebsite.git
+cd myWebsite/src/main/resources/sql
 ```
 
 **按顺序**导入（全新库）：
@@ -166,7 +167,7 @@ mysql -u ${DB_USER} -p${DB_PASSWORD} ${DB_NAME} -e "SHOW TABLES;"
 scp target/AI-0.0.1-SNAPSHOT.jar ${DEPLOY_USER}@${SERVER_IP}:${APP_ROOT}/
 ```
 
-**方式 B — GitHub Actions Artifact**：在 Ai-Backend 仓库 Actions 页下载 `ai-backend-jar`。
+**方式 B — GitHub Actions Artifact**：在 myWebsite 仓库 Actions 页下载 `ai-backend-jar`。
 
 ```bash
 sudo cp AI-0.0.1-SNAPSHOT.jar ${APP_ROOT}/
@@ -176,7 +177,7 @@ sudo chown www-data:www-data ${APP_ROOT}/AI-0.0.1-SNAPSHOT.jar
 ### 4.2 环境变量
 
 ```bash
-sudo cp /tmp/Ai-Backend/deploy/env/ai-backend.env.example /etc/ai-backend.env
+sudo cp /tmp/myWebsite/deploy/env/ai-backend.env.example /etc/ai-backend.env
 sudo chmod 600 /etc/ai-backend.env
 sudo nano /etc/ai-backend.env   # 填入 DB_PASSWORD、API Key 等
 ```
@@ -205,7 +206,7 @@ UPLOAD_BASE_URL=http://121.43.177.236/api
 ### 4.3 systemd 服务
 
 ```bash
-sudo cp /tmp/Ai-Backend/deploy/systemd/ai-backend.service /etc/systemd/system/
+sudo cp /tmp/myWebsite/deploy/systemd/ai-backend.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable ai-backend
 sudo systemctl start ai-backend
@@ -233,8 +234,8 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8123/api/v3/api-docs
 
 ```bash
 cd /tmp
-git clone https://github.com/mango-pie/Ai-frontend.git
-sudo rsync -a --delete Ai-frontend/AI-frontend/dist/ ${WEB_ROOT}/
+git clone https://github.com/mango-pie/MyWebsite-ui.git
+sudo rsync -a --delete MyWebsite-ui/AI-frontend/dist/ ${WEB_ROOT}/
 sudo chown -R www-data:www-data ${WEB_ROOT}
 ```
 
@@ -266,7 +267,7 @@ scp -r dist/* ${DEPLOY_USER}@${SERVER_IP}:${WEB_ROOT}/
 ## 第 6 步：配置 Nginx
 
 ```bash
-sudo cp /tmp/Ai-Backend/deploy/nginx/ai-site.conf /etc/nginx/sites-available/ai-site.conf
+sudo cp /tmp/myWebsite/deploy/nginx/ai-site.conf /etc/nginx/sites-available/ai-site.conf
 sudo sed -i "s/SERVER_IP/${SERVER_IP}/g" /etc/nginx/sites-available/ai-site.conf
 sudo ln -sf /etc/nginx/sites-available/ai-site.conf /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -299,8 +300,8 @@ sudo systemctl reload nginx
 ### 更新前端
 
 ```bash
-cd /tmp && rm -rf Ai-frontend && git clone https://github.com/mango-pie/Ai-frontend.git
-sudo rsync -a --delete Ai-frontend/AI-frontend/dist/ ${WEB_ROOT}/
+cd /tmp && rm -rf MyWebsite-ui && git clone https://github.com/mango-pie/MyWebsite-ui.git
+sudo rsync -a --delete MyWebsite-ui/AI-frontend/dist/ ${WEB_ROOT}/
 ```
 
 ### 更新后端
@@ -339,7 +340,7 @@ mysql -u ${DB_USER} -p${DB_PASSWORD} ${DB_NAME} < 新脚本.sql
 ## 第 10 步：给 Claude Code 的执行 Prompt
 
 ```
-请阅读 https://github.com/mango-pie/Ai-Backend/blob/main/docs/DEPLOY_SERVER.md，
+请阅读 https://github.com/mango-pie/myWebsite/blob/main/docs/DEPLOY_SERVER.md，
 在 Ubuntu 服务器上完成从零部署。
 
 已知信息：
@@ -420,9 +421,9 @@ sudo chown -R $USER:$USER /opt/netease-api
 # 方式 A：从本机 scp
 # scp -r AI-frontend/api-enhanced/* ${DEPLOY_USER}@${SERVER_IP}:/opt/netease-api/
 
-# 方式 B：服务器上若 Ai-frontend 仓库含该目录
-cd /tmp && git clone https://github.com/mango-pie/Ai-frontend.git
-sudo rsync -a Ai-frontend/AI-frontend/api-enhanced/ /opt/netease-api/
+# 方式 B：服务器上若 MyWebsite-ui 仓库含该目录
+cd /tmp && git clone https://github.com/mango-pie/MyWebsite-ui.git
+sudo rsync -a MyWebsite-ui/AI-frontend/api-enhanced/ /opt/netease-api/
 cd /opt/netease-api
 npm ci --omit=dev
 ```
@@ -439,7 +440,7 @@ PORT=3000 node app.js
 ### D.4 systemd 服务
 
 ```bash
-sudo cp /tmp/Ai-Backend/deploy/systemd/netease-api.service /etc/systemd/system/
+sudo cp /tmp/myWebsite/deploy/systemd/netease-api.service /etc/systemd/system/
 sudo chown -R www-data:www-data /opt/netease-api
 sudo systemctl daemon-reload
 sudo systemctl enable netease-api
@@ -455,7 +456,7 @@ journalctl -u netease-api -f --no-pager
 [`deploy/nginx/ai-site.conf`](../deploy/nginx/ai-site.conf) 已包含 `/netease-api/` 与 `/netease-img/`。若已部署过旧版 Nginx 配置，请合并后：
 
 ```bash
-sudo cp /tmp/Ai-Backend/deploy/nginx/ai-site.conf /etc/nginx/sites-available/ai-site.conf
+sudo cp /tmp/myWebsite/deploy/nginx/ai-site.conf /etc/nginx/sites-available/ai-site.conf
 sudo sed -i "s/SERVER_IP/${SERVER_IP}/g" /etc/nginx/sites-available/ai-site.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```

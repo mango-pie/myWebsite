@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -27,6 +28,22 @@ public class GlobalExceptionHandler {
     public BaseResponse<?> businessExceptionHandler(BusinessException e) {
         log.error("BusinessException", e);
         return ResultUtils.error(e.getCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public BaseResponse<?> dataIntegrityViolationHandler(DataIntegrityViolationException e) {
+        log.error("DataIntegrityViolationException", e);
+        String msg = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage() : e.getMessage();
+        if (msg != null && msg.contains("uk_learning_branch_sibling")) {
+            return ResultUtils.error(ErrorCode.PARAMS_ERROR, "同层级下已存在同名主题枝");
+        }
+        if (msg != null && msg.contains("uk_learning_domain_user_name")) {
+            return ResultUtils.error(ErrorCode.PARAMS_ERROR, "已存在同名领域");
+        }
+        if (opsRuntimeSettings.debugExposeErrorDetail() && isCurrentUserAdmin()) {
+            return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统错误: " + msg);
+        }
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "数据冲突，请检查是否重复创建");
     }
 
     @ExceptionHandler(RuntimeException.class)

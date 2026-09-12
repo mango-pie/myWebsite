@@ -310,6 +310,7 @@ public class KnowledgeAiModelServiceImpl implements KnowledgeAiModelService {
                 .userId(ctx.userId())
                 .scene(ctx.scene())
                 .conversationId(ctx.conversationId())
+                .jobId(AiUsageCallContext.getJobId())
                 .modelName(getChatModelName())
                 .promptTokens(tokens.promptTokens())
                 .completionTokens(tokens.completionTokens())

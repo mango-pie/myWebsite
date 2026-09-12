@@ -9,6 +9,7 @@ import com.ai.constant.knowledge.KnowledgeNoteConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.mapper.knowledge.KnowledgeNoteMapper;
+import com.ai.mapper.knowledge.SourceDocumentMapper;
 import com.ai.model.dto.knowledge.KnowledgeIngestBatchUrlRequest;
 import com.ai.model.entity.knowledge.KnowledgeNote;
 import com.ai.model.entity.knowledge.SourceDocument;
@@ -17,21 +18,32 @@ import com.ai.ops.AiUsageCallContext;
 import com.ai.service.BizStatDailyService;
 import com.ai.service.knowledge.KnowledgeIngestionService;
 import com.ai.service.knowledge.KnowledgeMergeDistillService;
+import com.ai.service.knowledge.support.KnowledgeAlignmentChecker;
+import com.ai.service.knowledge.support.ReadingSkillLoader;
 import com.ai.setting.runtime.ReadingRuntimeSettings;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+@Slf4j
 @ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillService {
 
-    private static final int MAX_MERGE_RAW_CHARS = 600_000;
+    private static final int DEFAULT_MAX_MERGE_RAW_CHARS = 600_000;
     private static final int MAX_URLS = 5;
+    /** 超过该长度（约 3 万 token）走分块蒸馏 + 合并，避免单次调用超上下文 */
+    private static final int CHUNKED_DISTILL_THRESHOLD = 120_000;
+    private static final String SOURCE_BLOCK_MARK = "\n## 来源 ";
+
+    @Value("${knowledge.reading.max-merge-raw-chars:" + DEFAULT_MAX_MERGE_RAW_CHARS + "}")
+    private int maxMergeRawChars;
 
     @Resource
     private KnowledgeDeepSeekReadingService deepSeekReadingService;
@@ -43,19 +55,23 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
     private KnowledgeNoteMapper knowledgeNoteMapper;
 
     @Resource
+    private SourceDocumentMapper sourceDocumentMapper;
+
+    @Resource
     private ReadingRuntimeSettings readingRuntimeSettings;
 
     @Resource
     private BizStatDailyService bizStatDailyService;
 
+    @Resource
+    private KnowledgeAlignmentChecker alignmentChecker;
+
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeIngestBatchUrlVO mergeDistill(KnowledgeIngestBatchUrlRequest request, Long userId) {
         return mergeDistill(request, userId, null);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeIngestBatchUrlVO mergeDistill(KnowledgeIngestBatchUrlRequest request,
                                                  Long userId,
                                                  Consumer<String> progressCallback) {
@@ -99,6 +115,7 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
             KnowledgeIngestBatchUrlVO.UsedSource used = new KnowledgeIngestBatchUrlVO.UsedSource();
             used.setUrl(source.url());
             used.setTitle(source.title());
+            used.setSrcRef(source.srcRef());
             used.setBodyChars(source.bodyMarkdown().length());
             vo.getUsedSources().add(used);
         }
@@ -121,9 +138,38 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
                 title, primaryUrl, truncated.rawText(), null, userId);
 
         notifyProgress(progressCallback, "DISTILLING");
-        String markdown = mergeDistillChat(truncated.rawText(), agentQuery,
-                request.getDistillPrompt(), userId, source.getId());
+        // 补偿窗口：ingest 已落库而蒸馏未完成——蒸馏失败时软删孤儿 source_document，
+        // 等价恢复原大事务的回滚语义（SourceDocument 为逻辑删除）
+        final String markdown;
+        try {
+            markdown = truncated.rawText().length() > CHUNKED_DISTILL_THRESHOLD
+                    ? mergeDistillChunked(truncated.rawText(), agentQuery,
+                            request.getDistillPrompt(), userId, source.getId(), request.getOutline())
+                    : mergeDistillChat(truncated.rawText(), agentQuery,
+                            request.getDistillPrompt(), userId, source.getId(), request.getOutline());
+        } catch (Exception e) {
+            try {
+                sourceDocumentMapper.deleteById(source.getId());
+            } catch (Exception cleanupEx) {
+                log.warn("补偿删除 source_document 失败 id={}", source.getId(), cleanupEx);
+            }
+            throw e;
+        }
         KnowledgeNote note = createNote(source, title, markdown, mergeTags(request.getTags(), agentQuery));
+
+        // 对齐度自检（flash，低成本）：与学习目标偏离时提示换材料 / 重蒸
+        if (StrUtil.isNotBlank(agentQuery)) {
+            KnowledgeAlignmentChecker.AlignmentResult alignment =
+                    alignmentChecker.check(markdown, agentQuery, userId, source.getId());
+            if (alignment != null) {
+                note.setAlignmentScore(java.math.BigDecimal.valueOf(alignment.score()));
+                note.setAlignmentNote(alignment.note());
+                note.setUpdateTime(LocalDateTime.now());
+                knowledgeNoteMapper.update(note);
+                vo.setAlignmentScore(alignment.score());
+                vo.setAlignmentNote(alignment.note());
+            }
+        }
 
         vo.setSuccess(true);
         vo.setNoteId(note.getId());
@@ -143,13 +189,14 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
         if (StrUtil.isNotBlank(agentQuery)) {
             sb.append("学习目标：").append(agentQuery).append("\n\n");
         }
-        sb.append("以下为 DeepSeek 按用户勾选 URL 读取并物化的网页材料，请综合成一篇精读文章。\n\n");
+        sb.append("以下为 DeepSeek 按用户勾选 URL 读取并压缩物化的网页材料（每条带 [srcN] 溯源标记），请综合成一篇精读文章。\n\n");
         boolean truncated = false;
         int used = 0;
         for (int i = 0; i < successes.size(); i++) {
             KnowledgeDeepSeekReadingService.MaterialSource s = successes.get(i);
+            String ref = StrUtil.blankToDefault(s.srcRef(), "src" + (i + 1));
             String block = """
-                    ## 来源 %d
+                    ## 来源 %d [%s]
                     - 标题：%s
                     - URL：%s
 
@@ -157,13 +204,13 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
                     %s
                     ---
 
-                    """.formatted(i + 1, s.title(), s.url(), s.bodyMarkdown());
-            if (sb.length() + block.length() > MAX_MERGE_RAW_CHARS && used > 0) {
+                    """.formatted(i + 1, ref, s.title(), s.url(), s.bodyMarkdown());
+            if (sb.length() + block.length() > maxMergeRawChars && used > 0) {
                 truncated = true;
                 break;
             }
-            if (sb.length() + block.length() > MAX_MERGE_RAW_CHARS) {
-                int remain = MAX_MERGE_RAW_CHARS - sb.length();
+            if (sb.length() + block.length() > maxMergeRawChars) {
+                int remain = maxMergeRawChars - sb.length();
                 if (remain > 200) {
                     sb.append(block, 0, Math.min(block.length(), remain));
                 }
@@ -180,28 +227,84 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
         return new TruncatedMerge(sb.toString(), truncated);
     }
 
+    /**
+     * 长材料分块蒸馏：按 [srcN] 来源分块各蒸一篇 → 合并为整篇（对齐大纲，保留溯源标注）。
+     */
+    private String mergeDistillChunked(String mergedRaw,
+                                       String agentQuery,
+                                       String promptOverride,
+                                       Long userId,
+                                       Long sourceId,
+                                       String outline) {
+        String header = mergedRaw;
+        List<String> blocks = new ArrayList<>();
+        int markLen = SOURCE_BLOCK_MARK.length();
+        int idx = mergedRaw.indexOf(SOURCE_BLOCK_MARK);
+        if (idx > 0) {
+            header = mergedRaw.substring(0, idx);
+        }
+        String rest = mergedRaw.substring(Math.max(idx, 0));
+        int from = 0;
+        while (true) {
+            int next = rest.indexOf(SOURCE_BLOCK_MARK, from + markLen);
+            if (next < 0) {
+                blocks.add(rest.substring(from));
+                break;
+            }
+            blocks.add(rest.substring(from, next));
+            from = next;
+        }
+
+        StringBuilder sections = new StringBuilder();
+        for (String block : blocks) {
+            if (block.isBlank()) {
+                continue;
+            }
+            String section = deepSeekReadingService.distill(
+                    block,
+                    singleSourceSystemPrompt(),
+                    readingRuntimeSettings.distillTemperature(),
+                    readingRuntimeSettings.distillMaxTokens());
+            if (StrUtil.isBlank(section)) {
+                section = block.length() > 4_000 ? block.substring(0, 4_000) : block;
+            }
+            sections.append("## ").append(section.trim()).append("\n\n");
+        }
+        if (sections.length() == 0) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "分块蒸馏未产出任何内容");
+        }
+
+        String extra = StrUtil.blankToDefault(StrUtil.trim(promptOverride),
+                readingRuntimeSettings.distillExtraPrompt());
+        String systemPrompt = ReadingSkillLoader.buildSystemPrompt(agentQuery, outline, extra)
+                + """
+
+                分块合并附加规则：把以下各来源独立精读稿合并为一篇连贯文章；去掉重复；保留 [srcN]；禁止编造。
+                """;
+        return deepSeekReadingService.distill(
+                "各来源精读稿：\n" + sections,
+                systemPrompt,
+                readingRuntimeSettings.distillTemperature(),
+                readingRuntimeSettings.distillMaxTokens());
+    }
+
+    private String singleSourceSystemPrompt() {
+        return ReadingSkillLoader.buildSystemPrompt(null, null, """
+                本轮只处理单一来源材料，仍须遵守 Skill 标题结构；参考来源只列这一篇。
+                """);
+    }
+
     private String mergeDistillChat(String mergedRaw,
                                     String agentQuery,
                                     String promptOverride,
                                     Long userId,
-                                    Long sourceId) {
-        String customPrompt = StrUtil.blankToDefault(StrUtil.trim(promptOverride),
-                readingRuntimeSettings.distillSystemPrompt());
-        String systemPrompt = """
-                你是严格的技术精读重构助手。你只能使用用户提供的「已物化网页材料」写作。
-                硬性约束（优先级高于用户自定义 Prompt）：
-                1. 禁止编造材料中没有出现的 API、配置、命令、数字、结论和引用。
-                2. 「代码/配置精髓」只能引用材料中出现过的代码、配置或命令；没有就明确写「材料未提供可验证示例」。
-                3. 「参考来源」只能列出材料中出现的标题与 URL。
-                4. 如果材料之间有冲突，要指出冲突，不要自行裁决。
-                5. 输出必须是 Markdown，不要解释你的执行过程。
-                学习目标：%s
-
-                用户自定义蒸馏 Prompt：
-                %s
-                """.formatted(StrUtil.blankToDefault(agentQuery, "无明确目标"), customPrompt);
-        String content = mergedRaw.length() > MAX_MERGE_RAW_CHARS
-                ? mergedRaw.substring(0, MAX_MERGE_RAW_CHARS)
+                                    Long sourceId,
+                                    String outline) {
+        String extra = StrUtil.blankToDefault(StrUtil.trim(promptOverride),
+                readingRuntimeSettings.distillExtraPrompt());
+        String systemPrompt = ReadingSkillLoader.buildSystemPrompt(agentQuery, outline, extra);
+        String content = mergedRaw.length() > maxMergeRawChars
+                ? mergedRaw.substring(0, maxMergeRawChars)
                 : mergedRaw;
         AiUsageCallContext.set(userId, AiUsageSceneConstant.DISTILL, sourceId, "merge-distill");
         try {
@@ -226,6 +329,8 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
         note.setStatus(KnowledgeNoteConstant.STATUS_SUCCESS);
         note.setPublishStatus(KnowledgeNoteConstant.PUBLISH_NOT_PUBLISHED);
         note.setIndexStatus(KnowledgeNoteConstant.INDEX_NOT_INDEXED);
+        note.setReviewStatus(KnowledgeNoteConstant.REVIEW_NEW);
+        note.setIsArchived(0);
         note.setViewCount(0);
         note.setLastDistilledAt(now);
         note.setCreateTime(now);

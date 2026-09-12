@@ -7,18 +7,13 @@
 
 把「发现优质资料、快速精炼、人工确认、沉淀到博客和知识库」做成一条可复用链路，提高学习效率，并为后续 Agent 搜文留统一入口。
 
-核心流程：
+核心流程（精读只需两步）：
 
 ```text
-URL / 文件 / AI 搜索候选
-  ↓
-抓取或解析原文 → source_document
-  ↓
-AI 精炼 Markdown → knowledge_note
-  ↓
-管理员预览、编辑、重新蒸馏
-  ↓
-发布到博客 / 加入知识库 / 两者都做
+1. 搜索：告诉 AI 要学什么 → 候选 URL 列表
+2. 勾选网页 → 按内置 Skill 输出一篇 Markdown → knowledge_note
+
+（可选）预览编辑 → 发博客 / 入知识库 / 挂领域树
 ```
 
 ## 2. 设计原则
@@ -75,16 +70,16 @@ knowledge_document_chunk 切块 + embedding（pgvector）
 
 详见：[04-v2-search-batch.md](./04-v2-search-batch.md)。
 
-### V3（远期）
+### V3（一期已落地）
 
-- 学习主题 → Agent 生成学习大纲并落库。
-- 按章节搜索资料并批量进入精读链。
-- 专题归档与学习路径。
+- **领域知识树**：用户手动建领域（如 Java），选中树下组织复习。
+- **相关门闩 + 枝/叶**：不相关仅问答；叶走 V2 合蒸后确认挂 `knowledge_note`；枝可只建目录不出文。
+- **工作台内树状复习**；发博客/入知识库仍手动；与知识库分桶并行。
 
-详见：[05-v3-agent-path.md](./05-v3-agent-path.md)。
+详见：[05-v3-agent-path.md](./05-v3-agent-path.md)（PRD）、[07-v3-backend.md](./07-v3-backend.md)（后端）、[08-v3-frontend-sync.md](./08-v3-frontend-sync.md)（前端联调）。
 
 ## 6. V1 明确不做
 
 - 真实联网搜索、批量自动精炼。
 - 异步任务队列、版本历史、Markdown/博客 diff。
-- 索引版本化、学习路线落库、多模型选择面板。
+- 索引版本化、领域知识树（V3 见 05）、多模型选择面板。

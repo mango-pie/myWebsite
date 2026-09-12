@@ -1,15 +1,25 @@
 # 生产环境：java -jar app.jar --spring.profiles.active=prod
-# 敏感项通过环境变量注入，见 DEPLOY.md
+# 面向 2GB 小机器默认：不连本机 Redis / pgvector / MinIO / TTS / 应用工坊。
+# 敏感项通过环境变量注入，见 DEPLOY.md 与 deploy/env/ai-backend.env.example
 
 spring:
   datasource:
     url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/aiscene?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: ${DB_USER:aiscene}
     password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
+
+server:
+  tomcat:
+    threads:
+      max: 30
+      min-spare: 5
 
 upload:
   path: /app/uploads/
@@ -21,7 +31,20 @@ gpt-sovits:
   seed-voice:
     enabled: false
 
+knowledge:
+  minio:
+    enabled: false
+  vector:
+    enabled: false
+  reading:
+    max-merge-raw-chars: 240000
+
 app:
+  redis:
+    mode: off
+  modules:
+    tts: false
+    app-lab: false
   deploy:
     host: ${APP_DEPLOY_HOST:https://your-domain.com}
     code-output-dir: /opt/ai-backend/tmp/code_output
@@ -33,6 +56,11 @@ langchain4j:
       base-url: ${CODEGEN_API_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
       api-key: ${CODEGEN_API_KEY}
       model-name: ${CODEGEN_MODEL_NAME:deepseek-v3}
+      log-requests: false
+      log-responses: false
 
 knife4j:
   enable: false
+
+cors:
+  allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:${APP_DEPLOY_HOST:http://localhost}}

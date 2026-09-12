@@ -10,6 +10,7 @@ import com.ai.model.entity.OpsAuditLog;
 import com.ai.model.vo.ops.OpsAuditLogVO;
 import com.ai.service.OpsAuditLogService;
 import com.ai.setting.runtime.OpsRuntimeSettings;
+import com.ai.utils.BatchDeletes;
 import com.ai.utils.RequestClientUtils;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -26,6 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -43,6 +45,9 @@ public class OpsAuditLogServiceImpl implements OpsAuditLogService {
 
     @Resource
     private OpsRuntimeSettings opsRuntimeSettings;
+
+    @Resource(name = "opsLogExecutor")
+    private Executor opsLogExecutor;
 
     @Override
     public void record(OpsAuditRecord record) {
@@ -65,7 +70,7 @@ public class OpsAuditLogServiceImpl implements OpsAuditLogService {
             } catch (Exception e) {
                 log.warn("Write ops_audit_log failed: {}", e.getMessage());
             }
-        });
+        }, opsLogExecutor);
     }
 
     @Override
@@ -108,8 +113,8 @@ public class OpsAuditLogServiceImpl implements OpsAuditLogService {
     public int purgeExpired() {
         int days = Math.max(1, opsRuntimeSettings.opsAuditRetainDays());
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
-        return opsAuditLogMapper.deleteByQuery(QueryWrapper.create()
-                .lt(OpsAuditLog::getCreateTime, cutoff));
+        return BatchDeletes.purge(opsAuditLogMapper,
+                () -> QueryWrapper.create().lt(OpsAuditLog::getCreateTime, cutoff));
     }
 
     private String toSafeDetailJson(Map<String, Object> detail) {

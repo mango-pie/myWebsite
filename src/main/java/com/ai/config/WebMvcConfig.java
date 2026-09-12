@@ -1,6 +1,7 @@
 package com.ai.config;
 
 import com.ai.interceptor.MaintenanceModeInterceptor;
+import com.ai.interceptor.ModuleGateInterceptor;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +24,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Resource
     private MaintenanceModeInterceptor maintenanceModeInterceptor;
 
+    @Resource
+    private ModuleGateInterceptor moduleGateInterceptor;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         Path uploadDir = Paths.get(uploadPath).toAbsolutePath().normalize();
@@ -44,6 +48,19 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/uploads/**",
+                        "/error"
+                );
+        // 业务模块运行时门禁：静态资源与探针不参与模块开关
+        registry.addInterceptor(moduleGateInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns(
+                        "/doc.html",
+                        "/webjars/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/uploads/**",
+                        "/actuator/**",
                         "/error"
                 );
     }

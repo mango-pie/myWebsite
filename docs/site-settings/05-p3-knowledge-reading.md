@@ -80,7 +80,7 @@
 ### 3.4 联调用例
 
 1. 修改 `rag.top_k` → 知识库问答引用片段数量变化。
-2. 修改 `distill.system_prompt` → 新采集精炼风格变化。
+2. 修改 `distill.system_prompt` → 仅作附加指令；空或旧默认文案则只用内置精读 Skill。
 3. `publish.default_as_draft=true` → 工作台发布默认勾选草稿。
 4. 修改 `embedding_dimension` → 前端风险确认；后端不自动删向量。
 

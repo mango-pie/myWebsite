@@ -212,7 +212,7 @@
 | --- | --- | --- | --- |
 | `distill.temperature` | double | `0.2` | 蒸馏温度 |
 | `distill.max_tokens` | int | `4096` | 蒸馏 max tokens |
-| `distill.system_prompt` | string | （与现有蒸馏 Prompt 对齐） | 系统提示词 |
+| `distill.system_prompt` | string | 空 | 精读附加指令；空则只用内置 Skill |
 | `publish.default_as_draft` | bool | `true` | 发布博客默认草稿 |
 | `publish.ask_open_editor` | bool | `true` | 发布后是否提示跳转编辑器 |
 | `redistill.confirm_required` | bool | `true` | 前端是否强制二次确认 |

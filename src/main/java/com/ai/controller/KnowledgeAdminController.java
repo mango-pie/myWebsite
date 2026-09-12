@@ -11,12 +11,17 @@ import com.ai.exception.ErrorCode;
 import com.ai.model.dto.knowledge.KnowledgeIngestBatchUrlRequest;
 import com.ai.model.dto.knowledge.KnowledgeIngestFileRequest;
 import com.ai.model.dto.knowledge.KnowledgeIngestUrlRequest;
+import com.ai.model.dto.knowledge.KnowledgeNoteArchiveRequest;
 import com.ai.model.dto.knowledge.KnowledgeNoteIndexRequest;
 import com.ai.model.dto.knowledge.KnowledgeNotePublishRequest;
 import com.ai.model.dto.knowledge.KnowledgeNoteQueryRequest;
+import com.ai.model.dto.knowledge.KnowledgeNoteReviewRequest;
 import com.ai.model.dto.knowledge.KnowledgeNoteUpdateRequest;
+import com.ai.model.dto.knowledge.KnowledgeOutlineConfirmRequest;
 import com.ai.model.dto.knowledge.KnowledgeProcessRequest;
+import com.ai.model.dto.knowledge.KnowledgeReadingJobQueryRequest;
 import com.ai.model.dto.knowledge.KnowledgeSearchPreviewRequest;
+import com.ai.model.dto.knowledge.KnowledgeTagRenameRequest;
 import com.ai.model.dto.knowledge.SearchOptions;
 import com.ai.model.entity.User;
 import com.ai.model.entity.knowledge.KnowledgeNote;
@@ -27,6 +32,7 @@ import com.ai.model.vo.knowledge.KnowledgeNoteDetailVO;
 import com.ai.model.vo.knowledge.KnowledgeNoteVO;
 import com.ai.model.vo.knowledge.KnowledgeReadingJobVO;
 import com.ai.model.vo.knowledge.KnowledgeSearchPreviewVO;
+import com.ai.model.vo.knowledge.ReadingSkillVO;
 import com.ai.model.vo.knowledge.SearchResult;
 import com.ai.service.UserService;
 import com.ai.service.knowledge.KnowledgeAiModelService;
@@ -37,11 +43,16 @@ import com.ai.service.knowledge.KnowledgeNotePublishService;
 import com.ai.service.knowledge.KnowledgeNoteService;
 import com.ai.service.knowledge.KnowledgeReadingJobService;
 import com.ai.service.knowledge.KnowledgeSearchStrategy;
+import com.ai.service.knowledge.LearningTreeGateService;
+import com.ai.service.knowledge.support.ReadingJobNotifier;
+import com.ai.service.knowledge.support.ReadingSkillLoader;
 import com.ai.setting.runtime.ReadingRuntimeSettings;
 import com.mybatisflex.core.paginate.Page;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,6 +63,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @ConditionalOnModule("knowledge")
 @RestController
@@ -88,6 +100,12 @@ public class KnowledgeAdminController {
     @Resource
     private java.util.List<KnowledgeSearchStrategy> knowledgeSearchStrategies;
 
+    @Resource
+    private LearningTreeGateService learningTreeGateService;
+
+    @Resource
+    private ReadingJobNotifier readingJobNotifier;
+
     @PostMapping("/ingest/url")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<KnowledgeNoteDetailVO> ingestUrl(@RequestBody KnowledgeIngestUrlRequest request,
@@ -105,10 +123,43 @@ public class KnowledgeAdminController {
     public BaseResponse<KnowledgeReadingJobVO> ingestBatchUrl(@RequestBody KnowledgeIngestBatchUrlRequest request,
                                                               HttpServletRequest httpRequest) {
         User loginUser = userService.getLoginUser(httpRequest);
+        if (request != null && request.getDomainId() != null) {
+            learningTreeGateService.validateTreeModeV2Access(
+                    loginUser.getId(),
+                    request.getDomainId(),
+                    request.getGatePassId(),
+                    request.getBranchId(),
+                    request.getSkipGate());
+        }
         if (readingRuntimeSettings.ingestAsync()) {
             return ResultUtils.success(knowledgeReadingJobService.submit(request, loginUser.getId()));
         }
         return ResultUtils.success(knowledgeReadingJobService.runSync(request, loginUser.getId()));
+    }
+
+    @GetMapping("/reading-jobs")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Page<KnowledgeReadingJobVO>> pageReadingJobs(KnowledgeReadingJobQueryRequest request,
+                                                                     HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeReadingJobService.page(request, loginUser.getId()));
+    }
+
+    /** 异步搜索：立即返回 jobId，后台 SEARCHING → AWAITING_SELECT */
+    @PostMapping("/reading-jobs/search")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<KnowledgeReadingJobVO> submitReadingSearch(@RequestBody KnowledgeSearchPreviewRequest request,
+                                                                   HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        if (request != null && request.getDomainId() != null) {
+            learningTreeGateService.validateTreeModeV2Access(
+                    loginUser.getId(),
+                    request.getDomainId(),
+                    request.getGatePassId(),
+                    request.getBranchId(),
+                    request.getSkipGate());
+        }
+        return ResultUtils.success(knowledgeReadingJobService.submitSearch(request, loginUser.getId()));
     }
 
     @GetMapping("/reading-jobs/{jobId}")
@@ -117,6 +168,34 @@ public class KnowledgeAdminController {
                                                              HttpServletRequest httpRequest) {
         User loginUser = userService.getLoginUser(httpRequest);
         return ResultUtils.success(knowledgeReadingJobService.getJob(jobId, loginUser.getId()));
+    }
+
+    /** 失败任务差量重试：仅重读失败来源（failedSources），上限 1 次；不重复校验门闩 */
+    @PostMapping("/reading-jobs/{jobId}/retry")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<KnowledgeReadingJobVO> retryReadingJob(@PathVariable Long jobId,
+                                                               HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeReadingJobService.retry(jobId, loginUser.getId()));
+    }
+
+    /** 大纲确认步：确认后重新入队，蒸馏按该大纲对齐输出 */
+    @PostMapping("/reading-jobs/{jobId}/confirm-outline")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<KnowledgeReadingJobVO> confirmReadingJobOutline(@PathVariable Long jobId,
+                                                                        @RequestBody(required = false) KnowledgeOutlineConfirmRequest request,
+                                                                        HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeReadingJobService.confirmOutline(
+                jobId, request == null ? null : request.getOutline(), loginUser.getId()));
+    }
+
+    /** 精读任务状态推送（SSE）：WAITING / SUCCESS / FAILED；轮询兜底仍可用 */
+    @GetMapping(value = "/reading-jobs/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public SseEmitter streamReadingJobs(HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return readingJobNotifier.subscribe(loginUser.getId());
     }
 
     @PostMapping(value = "/ingest/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -163,6 +242,68 @@ public class KnowledgeAdminController {
         return ResultUtils.success(knowledgeNoteService.delete(noteId, loginUser.getId()));
     }
 
+    /** 复习状态流转：NEW / REVIEWING / MASTERED */
+    @PutMapping("/notes/{noteId}/review-status")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<KnowledgeNoteVO> updateNoteReviewStatus(@PathVariable Long noteId,
+                                                                @RequestBody KnowledgeNoteReviewRequest request,
+                                                                HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeNoteService.updateReviewStatus(
+                noteId, request == null ? null : request.getReviewStatus(), loginUser.getId()));
+    }
+
+    /** 归档 / 取消归档（列表默认隐藏归档） */
+    @PutMapping("/notes/{noteId}/archive")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<KnowledgeNoteVO> archiveNote(@PathVariable Long noteId,
+                                                     @RequestBody KnowledgeNoteArchiveRequest request,
+                                                     HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        boolean archived = request != null && Boolean.TRUE.equals(request.getArchived());
+        return ResultUtils.success(knowledgeNoteService.archive(noteId, archived, loginUser.getId()));
+    }
+
+    /** 整库 Markdown 批量导出（zip 备份） */
+    @GetMapping(value = "/notes/export", produces = "application/zip")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public ResponseEntity<byte[]> exportNotes(HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        byte[] data = knowledgeNoteService.exportAll(loginUser.getId());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=knowledge-notes-" + java.time.LocalDate.now() + ".zip")
+                .body(data);
+    }
+
+    /** 标签统计 */
+    @GetMapping("/notes/tags")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<java.util.List<com.ai.model.vo.knowledge.KnowledgeTagVO>> listNoteTags(HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeNoteService.listTags(loginUser.getId()));
+    }
+
+    /** 标签重命名（合并） */
+    @PutMapping("/notes/tags/rename")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Integer> renameNoteTag(@RequestBody KnowledgeTagRenameRequest request,
+                                               HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeNoteService.renameTag(
+                request == null ? null : request.getOldName(),
+                request == null ? null : request.getNewName(),
+                loginUser.getId()));
+    }
+
+    /** 删除标签 */
+    @DeleteMapping("/notes/tags/{name}")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Integer> deleteNoteTag(@PathVariable String name, HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeNoteService.deleteTag(name, loginUser.getId()));
+    }
+
     @PostMapping("/notes/{noteId}/redistill")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<KnowledgeNoteDetailVO> redistill(@PathVariable Long noteId, HttpServletRequest httpRequest) {
@@ -203,11 +344,29 @@ public class KnowledgeAdminController {
         return ResultUtils.success(knowledgeNoteIndexService.reindex(noteId, loginUser.getId()));
     }
 
+    @GetMapping("/reading-skill")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<ReadingSkillVO> getReadingSkill() {
+        ReadingSkillVO vo = new ReadingSkillVO();
+        vo.setName(ReadingSkillLoader.name());
+        vo.setDescription(ReadingSkillLoader.description());
+        vo.setBody(ReadingSkillLoader.body());
+        return ResultUtils.success(vo);
+    }
+
     @PostMapping("/search/preview")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<KnowledgeSearchPreviewVO> searchPreview(@RequestBody KnowledgeSearchPreviewRequest request,
                                                                 HttpServletRequest httpRequest) {
-        userService.getLoginUser(httpRequest);
+        User loginUser = userService.getLoginUser(httpRequest);
+        if (request != null && request.getDomainId() != null) {
+            learningTreeGateService.validateTreeModeV2Access(
+                    loginUser.getId(),
+                    request.getDomainId(),
+                    request.getGatePassId(),
+                    request.getBranchId(),
+                    request.getSkipGate());
+        }
         KnowledgeSearchPreviewVO vo = new KnowledgeSearchPreviewVO();
         String goal = request == null ? "" : request.getGoal();
         if (cn.hutool.core.util.StrUtil.isBlank(goal)) {
@@ -215,7 +374,10 @@ public class KnowledgeAdminController {
         }
         String preference = request == null ? null : request.getPreference();
         vo.setGoal(goal);
-        vo.setOutline(buildOutline(goal, preference));
+        boolean treeMode = request != null && request.getDomainId() != null;
+        if (!treeMode) {
+            vo.setOutline(buildOutline(goal, preference));
+        }
         KnowledgeSearchStrategy strategy = resolveSearchStrategy();
         SearchOptions options = SearchOptions.builder().preference(preference).build();
         java.util.List<SearchResult> results = strategy.search(goal, options);

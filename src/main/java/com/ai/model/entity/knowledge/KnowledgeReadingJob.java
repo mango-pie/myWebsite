@@ -28,6 +28,7 @@ public class KnowledgeReadingJob implements Serializable {
     private String resultJson;
     private Long noteId;
     private String errorMsg;
+    private Integer retryCount;
     private LocalDateTime startedAt;
     private LocalDateTime finishedAt;
     private LocalDateTime createTime;

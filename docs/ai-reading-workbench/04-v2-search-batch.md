@@ -1,14 +1,17 @@
 # 04 V2：真实搜索与批量精炼
 
-> **推荐路径（方案 B）**：DeepSeek 官方联网找文 → 勾选 → 合蒸一篇 → 博客/知识库。  
-> 联调见 [06-v2-frontend-sync.md](./06-v2-frontend-sync.md)。
+> **精读两步**：搜索候选 → 勾选 URL，按内置 Skill 出一篇 Markdown。  
+> 发博客 / 入知识库是可选后续，不是精读必需。联调见 [06-v2-frontend-sync.md](./06-v2-frontend-sync.md)。
 
-## 产品四步
+## 产品两步
 
-1. 告诉 AI 要学什么  
-2. 联网搜索（DeepSeek web_search，类网页版）→ 列表供预览勾选  
-3. DeepSeek 读取勾选网页，物化材料包；拼接后按 **自定义提示词** 一次重构成一篇完整文章  
-4. 人工确认后发博客 / 入知识库  
+1. 告诉 AI 要学什么 → 联网搜索 → 列表勾选  
+2. 对勾选 URL：读取材料后，**严格按照** `skills/knowledge-reading/SKILL.md` 输出一篇 Markdown，写入 `knowledge_note`
+
+可选：人工改稿后发博客 / 入知识库 / 挂领域树。
+
+格式契约：`src/main/resources/skills/knowledge-reading/SKILL.md`（`GET /admin/knowledge/reading-skill` 可取回正文）。  
+`distillPrompt` / 站点 `distill.system_prompt` 只作**附加指令**，不能覆盖 Skill 的标题结构与硬性约束。
 
 Tavily 仍可作为 `search.provider=tavily` 备用，默认应为 `deepseek`。
 搜索与读页使用 `search-model` / `reading-model`（默认均为 `deepseek-v4-flash`）；精读重构使用 `distill-model`（默认 `deepseek-v4-pro`）。
@@ -23,9 +26,9 @@ Tavily 仍可作为 `search.provider=tavily` 备用，默认应为 `deepseek`。
 ## 验收
 
 - 配置 DeepSeek 官方 Key 后能出文章候选 URL  
-- 勾选后只生成一篇 note  
+- 勾选后只生成一篇 note，且 Markdown 含 Skill 规定标题（核心思想 / 关键知识点 / 代码/配置精髓 / 延伸问题 / 参考来源）  
 - 合蒸不再先逐篇摘要；`SourceDocument.rawText` 保存拼接后的材料包  
 - 该 note 可发博客、可入知识库  
-- 改 `reading.distill.system_prompt` 或请求体 `distillPrompt` 能影响最终精读结构  
+- `distillPrompt` 或站点附加指令只影响语气/侧重点，不改变 Skill 结构  
 - `async`：提交立即有 `jobId`，轮询至 `SUCCESS` 且有 `noteId`；两任务时第二个保持 PENDING 直到第一个结束  
 - `sync`：一次请求直接拿到 `noteId`（回归） 

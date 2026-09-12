@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -38,6 +39,9 @@ public class ChatImageCaptionServiceImpl implements ChatImageCaptionService {
     @Autowired(required = false)
     @Qualifier("imageCaptionChatModel")
     private ChatModel imageCaptionChatModel;
+
+    @Resource(name = "aiTaskExecutor")
+    private Executor aiTaskExecutor;
 
     @Override
     public String caption(byte[] imageBytes, String mimeType) {
@@ -64,12 +68,19 @@ public class ChatImageCaptionServiceImpl implements ChatImageCaptionService {
 
         try {
             CompletableFuture<ChatResponse> future = CompletableFuture.supplyAsync(
-                    () -> imageCaptionChatModel.chat(userMessage)
+                    () -> imageCaptionChatModel.chat(userMessage), aiTaskExecutor
             );
-            ChatResponse response = future.get(
-                    chatRuntimeSettings.imageCaptionTimeoutSeconds(),
-                    TimeUnit.SECONDS
-            );
+            ChatResponse response;
+            try {
+                response = future.get(
+                        chatRuntimeSettings.imageCaptionTimeoutSeconds(),
+                        TimeUnit.SECONDS
+                );
+            } catch (TimeoutException e) {
+                // 超时后取消底层任务，避免长调用继续占用线程
+                future.cancel(true);
+                throw e;
+            }
             String text = response != null && response.aiMessage() != null
                     ? response.aiMessage().text()
                     : null;

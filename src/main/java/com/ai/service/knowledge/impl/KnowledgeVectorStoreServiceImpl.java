@@ -1,6 +1,7 @@
 package com.ai.service.knowledge.impl;
 
 import com.ai.config.ConditionalOnModule;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import com.ai.config.knowledge.KnowledgeVectorProperties;
 import com.ai.exception.BusinessException;
@@ -24,9 +25,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @ConditionalOnModule("knowledge")
+@ConditionalOnProperty(name = "knowledge.vector.enabled", havingValue = "true", matchIfMissing = true)
 @Service
 public class KnowledgeVectorStoreServiceImpl implements KnowledgeVectorStoreService {
 
@@ -145,6 +148,101 @@ public class KnowledgeVectorStoreServiceImpl implements KnowledgeVectorStoreServ
             log.error("Delete knowledge chunks failed, documentId={}", documentId, e);
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除向量数据失败");
         }
+    }
+
+    @Override
+    public Map<Integer, String> chunkContentsByIndex(Long documentId) {
+        try {
+            List<java.util.Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT chunk_index, content FROM knowledge_document_chunk WHERE knowledge_document_id = ?",
+                    documentId);
+            java.util.Map<Integer, String> result = new java.util.HashMap<>();
+            for (java.util.Map<String, Object> row : rows) {
+                Object idx = row.get("chunk_index");
+                Object content = row.get("content");
+                if (idx != null && content != null) {
+                    result.put(((Number) idx).intValue(), String.valueOf(content));
+                }
+            }
+            return result;
+        } catch (DataAccessException e) {
+            throw toVectorStoreException("读取现有切块失败", e);
+        }
+    }
+
+    @Override
+    public void upsertChunks(KnowledgeDocument document, List<Integer> indexes,
+                             List<KnowledgeTextChunk> chunks, List<float[]> embeddings) {
+        if (chunks.size() != embeddings.size() || chunks.size() != indexes.size()) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Chunk / index / embedding 数量不一致");
+        }
+        if (chunks.isEmpty()) {
+            return;
+        }
+        try {
+            transactionTemplate.executeWithoutResult(status -> {
+                for (int i = 0; i < chunks.size(); i++) {
+                    jdbcTemplate.update(
+                            "DELETE FROM knowledge_document_chunk WHERE knowledge_document_id = ? AND chunk_index = ?",
+                            document.getId(), indexes.get(i));
+                }
+                saveChunksByIndexes(document, indexes, chunks, embeddings);
+            });
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Upsert knowledge chunks failed, documentId={}", document.getId(), e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "差量保存向量数据失败，请确认 PostgreSQL/pgvector 可用");
+        }
+    }
+
+    @Override
+    public void deleteChunkIndexes(Long documentId, List<Integer> indexes) {
+        if (indexes == null || indexes.isEmpty()) {
+            return;
+        }
+        try {
+            String in = String.join(",", java.util.Collections.nCopies(indexes.size(), "?"));
+            jdbcTemplate.update(
+                    "DELETE FROM knowledge_document_chunk WHERE knowledge_document_id = ? AND chunk_index IN (" + in + ")",
+                    argumentList(documentId, indexes).toArray());
+        } catch (Exception e) {
+            log.error("Delete chunk indexes failed, documentId={}", documentId, e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除过期切块失败");
+        }
+    }
+
+    private List<Object> argumentList(Long documentId, List<Integer> indexes) {
+        List<Object> args = new ArrayList<>();
+        args.add(documentId);
+        args.addAll(indexes);
+        return args;
+    }
+
+    private void saveChunksByIndexes(KnowledgeDocument document, List<Integer> indexes,
+                                     List<KnowledgeTextChunk> chunks, List<float[]> embeddings) {
+        String sql = """
+                INSERT INTO knowledge_document_chunk
+                (knowledge_base_id, knowledge_document_id, source_document_id, chunk_index, heading,
+                 content, token_count, embedding, metadata, create_time, update_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS vector), CAST(? AS jsonb), now(), now())
+                """;
+        List<Object[]> args = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            KnowledgeTextChunk chunk = chunks.get(i);
+            args.add(new Object[]{
+                    document.getKnowledgeBaseId(),
+                    document.getId(),
+                    document.getSourceDocumentId(),
+                    indexes.get(i),
+                    chunk.heading(),
+                    chunk.content(),
+                    chunk.tokenCount(),
+                    toVectorLiteral(embeddings.get(i)),
+                    chunk.metadata()
+            });
+        }
+        jdbcTemplate.batchUpdate(sql, args);
     }
 
     private void saveChunks(KnowledgeDocument document, List<KnowledgeTextChunk> chunks, List<float[]> embeddings) {

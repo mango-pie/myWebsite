@@ -24,6 +24,13 @@ public final class KnowledgeNoteConstant {
     public static final String SOURCE_FILE = "FILE";
     public static final String SOURCE_AGENT = "AGENT";
 
+    /** 复习状态：新学 */
+    public static final String REVIEW_NEW = "NEW";
+    /** 复习状态：复习中 */
+    public static final String REVIEW_REVIEWING = "REVIEWING";
+    /** 复习状态：已掌握 */
+    public static final String REVIEW_MASTERED = "MASTERED";
+
     public static final String VIRTUAL_BUCKET = "knowledge-notes";
     public static final String FILE_TYPE_MD = "MD";
 }

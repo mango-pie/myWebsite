@@ -45,14 +45,17 @@ public class ReadingModule implements SettingModule {
         return List.of(
                 dbl("distill.temperature", "蒸馏温度", 0.2, 0, 2),
                 intField("distill.max_tokens", "蒸馏 max tokens", 4096, 256, 32768),
-                text("distill.system_prompt", "蒸馏系统 Prompt", DEFAULT_DISTILL_SYSTEM_PROMPT),
+                text("distill.system_prompt", "精读附加指令（空则只用内置 Skill）", ""),
 
                 bool("publish.default_as_draft", "发布默认草稿", true, false),
                 bool("publish.ask_open_editor", "发布后提示打开编辑器", true, false),
+                bool("publish.force_source_link", "发布强制附原文链接", true, false),
                 bool("redistill.confirm_required", "重新蒸馏需二次确认", true, false),
 
                 enumStr("search.provider", "搜索提供方", "deepseek", List.copyOf(SEARCH_PROVIDERS)),
-                enumStr("ingest.sync_mode", "采集模式", "async", List.copyOf(SYNC_MODES))
+                enumStr("ingest.sync_mode", "采集模式", "async", List.copyOf(SYNC_MODES)),
+                bool("ingest.balance_check_enabled", "余额不足熔断新任务", false, false),
+                intField("ingest.max_queued", "排队任务上限", 5, 1, 20)
         );
     }
 
@@ -69,10 +72,7 @@ public class ReadingModule implements SettingModule {
     public void validate(Map<String, Object> items) {
         if (items.containsKey("distill.system_prompt")) {
             Object prompt = items.get("distill.system_prompt");
-            if (prompt == null || String.valueOf(prompt).isBlank()) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "distill.system_prompt 不能为空");
-            }
-            if (String.valueOf(prompt).length() > 16000) {
+            if (prompt != null && String.valueOf(prompt).length() > 16000) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "distill.system_prompt 过长");
             }
         }
