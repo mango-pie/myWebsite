@@ -28,7 +28,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -38,6 +38,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @ConditionalOnModule("knowledge")
 @Service
@@ -64,14 +65,21 @@ public class KnowledgeChatServiceImpl implements KnowledgeChatService {
     @Resource
     private KnowledgeAiModelService aiModelService;
 
+    @Resource
+    private TransactionTemplate transactionTemplate;
+
+    @Resource(name = "aiTaskExecutor")
+    private Executor aiTaskExecutor;
+
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeChatResponse chat(KnowledgeChatRequest request, Long userId) {
         KnowledgeConversation conversation = prepareConversation(request, userId);
         List<KnowledgeMessage> history = recentHistory(conversation.getId());
         KnowledgeMessage userMessage = saveMessage(conversation.getId(), userId, "USER", request.getQuestion(), null);
         touchConversation(conversation, request.getQuestion(), true);
 
+        // RAG 检索（pgvector）与 AI 调用（HTTP）不得持有 MySQL 连接，
+        // 仅助手消息+引用落库使用短事务保证原子性
         List<KnowledgeChunkVO> chunks = ragService.searchChunks(conversation.getKnowledgeBaseId(),
                 request.getSourceDocumentId(), request.getQuestion(), request.getTopK());
         List<KnowledgeReferenceVO> references = toReferences(chunks);
@@ -87,10 +95,14 @@ public class KnowledgeChatServiceImpl implements KnowledgeChatService {
                 AiUsageCallContext.clear();
             }
         }
-        KnowledgeMessage assistantMessage = saveMessage(conversation.getId(), userId, "ASSISTANT", answer,
-                aiModelService.getChatModelName());
-        saveReferences(assistantMessage.getId(), references);
-        touchConversation(conversation, answer, false);
+        String finalAnswer = answer;
+        KnowledgeMessage assistantMessage = transactionTemplate.execute(status -> {
+            KnowledgeMessage message = saveMessage(conversation.getId(), userId, "ASSISTANT", finalAnswer,
+                    aiModelService.getChatModelName());
+            saveReferences(message.getId(), references);
+            touchConversation(conversation, finalAnswer, false);
+            return message;
+        });
 
         KnowledgeChatResponse response = new KnowledgeChatResponse();
         response.setConversationId(conversation.getId());
@@ -104,6 +116,8 @@ public class KnowledgeChatServiceImpl implements KnowledgeChatService {
     @Override
     public SseEmitter streamChat(KnowledgeChatRequest request, Long userId) {
         SseEmitter emitter = new SseEmitter(300_000L);
+        // 客户端超时后主动完成，避免推送线程持续向死连接 write
+        emitter.onTimeout(emitter::complete);
         CompletableFuture.runAsync(() -> {
             try {
                 KnowledgeConversation conversation = prepareConversation(request, userId);
@@ -140,7 +154,7 @@ public class KnowledgeChatServiceImpl implements KnowledgeChatService {
                 send(emitter, "error", e.getMessage());
                 emitter.completeWithError(e);
             }
-        });
+        }, aiTaskExecutor);
         return emitter;
     }
 

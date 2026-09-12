@@ -39,7 +39,6 @@ public class KnowledgeReadingJobServiceImpl implements KnowledgeReadingJobServic
     private ObjectMapper objectMapper;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeReadingJobVO submit(KnowledgeIngestBatchUrlRequest request, Long userId) {
         List<String> urls = normalizeUrls(request);
         KnowledgeIngestBatchUrlRequest snapshot = copyRequest(request, urls);

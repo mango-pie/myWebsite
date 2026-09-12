@@ -9,6 +9,7 @@ import com.ai.constant.knowledge.KnowledgeNoteConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.mapper.knowledge.KnowledgeNoteMapper;
+import com.ai.mapper.knowledge.SourceDocumentMapper;
 import com.ai.model.dto.knowledge.KnowledgeIngestBatchUrlRequest;
 import com.ai.model.entity.knowledge.KnowledgeNote;
 import com.ai.model.entity.knowledge.SourceDocument;
@@ -19,13 +20,14 @@ import com.ai.service.knowledge.KnowledgeIngestionService;
 import com.ai.service.knowledge.KnowledgeMergeDistillService;
 import com.ai.setting.runtime.ReadingRuntimeSettings;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Consumer;
 
+@Slf4j
 @ConditionalOnModule("knowledge")
 @Service
 public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillService {
@@ -43,19 +45,20 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
     private KnowledgeNoteMapper knowledgeNoteMapper;
 
     @Resource
+    private SourceDocumentMapper sourceDocumentMapper;
+
+    @Resource
     private ReadingRuntimeSettings readingRuntimeSettings;
 
     @Resource
     private BizStatDailyService bizStatDailyService;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeIngestBatchUrlVO mergeDistill(KnowledgeIngestBatchUrlRequest request, Long userId) {
         return mergeDistill(request, userId, null);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeIngestBatchUrlVO mergeDistill(KnowledgeIngestBatchUrlRequest request,
                                                  Long userId,
                                                  Consumer<String> progressCallback) {
@@ -121,8 +124,20 @@ public class KnowledgeMergeDistillServiceImpl implements KnowledgeMergeDistillSe
                 title, primaryUrl, truncated.rawText(), null, userId);
 
         notifyProgress(progressCallback, "DISTILLING");
-        String markdown = mergeDistillChat(truncated.rawText(), agentQuery,
-                request.getDistillPrompt(), userId, source.getId());
+        // 补偿窗口：ingest 已落库而蒸馏未完成——蒸馏失败时软删孤儿 source_document，
+        // 等价恢复原大事务的回滚语义（SourceDocument 为逻辑删除）
+        final String markdown;
+        try {
+            markdown = mergeDistillChat(truncated.rawText(), agentQuery,
+                    request.getDistillPrompt(), userId, source.getId());
+        } catch (Exception e) {
+            try {
+                sourceDocumentMapper.deleteById(source.getId());
+            } catch (Exception cleanupEx) {
+                log.warn("补偿删除 source_document 失败 id={}", source.getId(), cleanupEx);
+            }
+            throw e;
+        }
         KnowledgeNote note = createNote(source, title, markdown, mergeTags(request.getTags(), agentQuery));
 
         vo.setSuccess(true);
