@@ -7,6 +7,7 @@ import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
 import com.ai.constant.UserConstant;
 import com.ai.model.vo.ops.AiUsageLogVO;
+import com.ai.model.vo.ops.AiUsageMonthlyVO;
 import com.ai.model.vo.ops.AiUsageSummaryVO;
 import com.ai.model.vo.ops.BizStatSeriesPointVO;
 import com.ai.model.vo.ops.BizStatsOverviewVO;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 /**
@@ -65,6 +67,15 @@ public class AdminOpsController {
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "20") int pageSize) {
         return ResultUtils.success(aiUsageLogService.pageLogs(scene, userId, from, to, pageNum, pageSize));
+    }
+
+    /** 月度视图：按天序列 + 场景/模型聚合（含 token，供前端按模型单价估算成本） */
+    @GetMapping("/usage/monthly")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<AiUsageMonthlyVO> usageMonthly(
+            @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
+        LocalDate monthDate = month == null ? LocalDate.now() : month.atDay(1);
+        return ResultUtils.success(aiUsageLogService.monthly(monthDate));
     }
 
     @GetMapping("/audit")

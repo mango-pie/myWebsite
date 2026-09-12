@@ -2,6 +2,7 @@ package com.ai.service.noop;
 
 import com.ai.model.dto.ops.AiUsageRecord;
 import com.ai.model.vo.ops.AiUsageLogVO;
+import com.ai.model.vo.ops.AiUsageMonthlyVO;
 import com.ai.model.vo.ops.AiUsageSummaryVO;
 import com.ai.service.AiUsageLogService;
 import com.mybatisflex.core.paginate.Page;
@@ -29,6 +30,11 @@ public class NoOpAiUsageLogService implements AiUsageLogService {
     @Override
     public AiUsageSummaryVO summary(LocalDate from, LocalDate to) {
         return new AiUsageSummaryVO();
+    }
+
+    @Override
+    public AiUsageMonthlyVO monthly(LocalDate month) {
+        return new AiUsageMonthlyVO();
     }
 
     @Override

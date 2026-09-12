@@ -2,6 +2,7 @@ package com.ai.service;
 
 import com.ai.model.dto.ops.AiUsageRecord;
 import com.ai.model.vo.ops.AiUsageLogVO;
+import com.ai.model.vo.ops.AiUsageMonthlyVO;
 import com.ai.model.vo.ops.AiUsageSummaryVO;
 import com.mybatisflex.core.paginate.Page;
 
@@ -14,6 +15,8 @@ public interface AiUsageLogService {
     Page<AiUsageLogVO> pageLogs(String scene, Long userId, LocalDate from, LocalDate to, int pageNum, int pageSize);
 
     AiUsageSummaryVO summary(LocalDate from, LocalDate to);
+
+    AiUsageMonthlyVO monthly(LocalDate month);
 
     int purgeExpired();
 }
