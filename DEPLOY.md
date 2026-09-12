@@ -17,15 +17,20 @@
 | systemd 网易云（可选） | [deploy/systemd/netease-api.service](deploy/systemd/netease-api.service) |
 | 环境变量模板 | [deploy/env/ai-backend.env.example](deploy/env/ai-backend.env.example) |
 | SQL 脚本 | [src/main/resources/sql/](src/main/resources/sql/) |
+| P0/P1 重构方案与落地记录 | [docs/p0-tx-and-scheduler-refactor.md](docs/p0-tx-and-scheduler-refactor.md) |
+| 索引/表盘点 | [docs/db-index-and-table-audit.md](docs/db-index-and-table-audit.md) |
 
-运维可观测 Phase A～D 需额外执行（若尚未建表）：
+## 数据库迁移（Flyway，自动）
 
-- `src/main/resources/sql/ai_usage_log_schema.sql`
-- `src/main/resources/sql/ops_audit_log_schema.sql`
-- `src/main/resources/sql/biz_stat_daily_schema.sql`
-- `src/main/resources/sql/http_access_log_schema.sql`
+建表与结构变更由 **Flyway 启动时自动执行**（`db/migration/V1+`，全部幂等：
+`CREATE TABLE IF NOT EXISTS` / information_schema 守卫，不碰数据）：
+存量库首次启动自动打 baseline 后按序补齐迁移；`src/main/resources/sql/` 仅作参考留档，
+**不再需要手动执行**。紧急情况可设 `FLYWAY_ENABLED=false` 跳过迁移启动。
 
-联调文档：[`docs/ops-observability/`](docs/ops-observability/README.md) 下 `FRONTEND_SYNC_A`～`D`。
+健康检查：`GET /api/actuator/health`（只回 `{"status":"UP|DOWN"}`，不暴露组件明细），
+部署验收以此为准。Redis 关闭（`APP_REDIS_MODE=off`）时 health 仍应为 UP。
+
+运维可观测联调文档：[`docs/ops-observability/`](docs/ops-observability/README.md) 下 `FRONTEND_SYNC_A`～`D`。
 
 ## 本地开发
 
