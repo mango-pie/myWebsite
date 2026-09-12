@@ -16,6 +16,8 @@ public interface SiteSettingConstant {
     String MODULE_SECURITY = "security";
     String MODULE_UPLOAD = "upload";
     String MODULE_INTEGRATION = "integration";
+    /** 业务模块开关，key 与 ModuleEnablementService.snapshot() 一致 */
+    String MODULE_MODULES = "modules";
     String MODULE_CHAT = "chat";
     String MODULE_TTS = "tts";
     String MODULE_KNOWLEDGE = "knowledge";

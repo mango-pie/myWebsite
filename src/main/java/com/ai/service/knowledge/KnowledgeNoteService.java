@@ -20,4 +20,6 @@ public interface KnowledgeNoteService {
     KnowledgeNote requireOwned(Long noteId, Long userId);
 
     KnowledgeNoteVO toVO(KnowledgeNote note);
+
+    void clearBlogLinkByPostId(Long blogPostId, Long userId);
 }

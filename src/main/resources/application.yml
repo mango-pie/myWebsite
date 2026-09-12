@@ -187,6 +187,7 @@ app:
     chat: true
     study: true
     diary: true
+    worklog: true
     tts: true
     app-lab: true
   deploy:

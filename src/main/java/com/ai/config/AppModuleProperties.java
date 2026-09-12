@@ -19,6 +19,7 @@ public class AppModuleProperties {
     private boolean chat = true;
     private boolean study = true;
     private boolean diary = true;
+    private boolean worklog = true;
     private boolean tts = true;
     private boolean appLab = true;
 
@@ -34,13 +35,15 @@ public class AppModuleProperties {
             case "chat" -> chat;
             case "study" -> study;
             case "diary" -> diary;
+            case "worklog" -> worklog;
             case "tts" -> tts;
             case "app", "app-lab", "applab" -> appLab;
             default -> false;
         };
     }
 
-    static String normalizeKey(String moduleName) {
+    /** 模块 key 规范化：大小写、下划线 → 连字符。 */
+    public static String normalizeKey(String moduleName) {
         return moduleName.trim().toLowerCase().replace('_', '-');
     }
 }

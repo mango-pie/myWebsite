@@ -24,6 +24,7 @@ import com.ai.service.knowledge.KnowledgeNoteService;
 import com.ai.service.knowledge.spi.NoteBlogPublisher;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.update.UpdateChain;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
@@ -241,6 +242,28 @@ public class KnowledgeNoteServiceImpl implements KnowledgeNoteService {
         }
         SourceDocument source = sourceDocumentMapper.selectOneById(note.getSourceDocumentId());
         return toVO(note, source);
+    }
+
+    @Override
+    public void clearBlogLinkByPostId(Long blogPostId, Long userId) {
+        if (blogPostId == null || userId == null) {
+            return;
+        }
+        KnowledgeNote note = knowledgeNoteMapper.selectOneByQuery(
+                QueryWrapper.create().eq("blog_post_id", blogPostId));
+        if (note == null) {
+            return;
+        }
+        SourceDocument source = sourceDocumentMapper.selectOneById(note.getSourceDocumentId());
+        if (source == null || !Objects.equals(source.getUserId(), userId)) {
+            return;
+        }
+        UpdateChain.of(KnowledgeNote.class)
+                .set(KnowledgeNote::getBlogPostId, null)
+                .set(KnowledgeNote::getPublishStatus, KnowledgeNoteConstant.PUBLISH_NOT_PUBLISHED)
+                .set(KnowledgeNote::getUpdateTime, LocalDateTime.now())
+                .where(KnowledgeNote::getId).eq(note.getId())
+                .update();
     }
 
     private KnowledgeNoteVO toVO(KnowledgeNote note, SourceDocument source) {
