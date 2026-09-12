@@ -6,10 +6,20 @@ spring:
     url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/aiscene?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: ${DB_USER:aiscene}
     password: ${DB_PASSWORD}
+    hikari:
+      # 2GB 小机器：连接池 5 是有意为之，加大池是错药（瓶颈在事务边界，见 docs/p0-tx-and-scheduler-refactor.md）
+      maximum-pool-size: 5
+      minimum-idle: 1
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
+
+server:
+  tomcat:
+    threads:
+      max: 30
+      min-spare: 5
 
 upload:
   path: /app/uploads/
@@ -22,10 +32,19 @@ gpt-sovits:
     enabled: false
 
 app:
+  redis:
+    # 2GB 机器不跑 Redis：显式关闭（会话本就 store-type none，Redis 仅缓存）
+    mode: off
+  modules:
+    tts: false
+    app-lab: false
   deploy:
     host: ${APP_DEPLOY_HOST:https://your-domain.com}
     code-output-dir: /opt/ai-backend/tmp/code_output
     code-deploy-dir: /opt/ai-backend/tmp/code_deploy
+
+cors:
+  allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:${APP_DEPLOY_HOST:http://localhost}}
 
 langchain4j:
   open-ai:
@@ -33,6 +52,9 @@ langchain4j:
       base-url: ${CODEGEN_API_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
       api-key: ${CODEGEN_API_KEY}
       model-name: ${CODEGEN_MODEL_NAME:deepseek-v3}
+      # 生产默认关闭 LLM 请求/响应日志（防敏感信息落盘），本地 dev 在 application-local.yml 显式开启
+      log-requests: false
+      log-responses: false
 
 knife4j:
   enable: false

@@ -58,6 +58,15 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- 数据库版本化迁移 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -103,6 +112,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <!-- 健康检查 / 运行时信息 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
         <dependency>
@@ -210,6 +224,14 @@
                         </exclude>
                     </excludes>
                 </configuration>
+                <executions>
+                    <!-- 生成 build-info.properties：/actuator/info 可查看版本与构建时间 -->
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
@@ -219,6 +241,8 @@
                     <argLine>
                         -javaagent:"${settings.localRepository}/net/bytebuddy/byte-buddy-agent/1.17.8/byte-buddy-agent-1.17.8.jar"
                     </argLine>
+                    <!-- 默认跳过需要完整上下文/外部依赖的 integration 测试，使 mvn verify 可在无 DB/Redis 时通过 -->
+                    <excludedGroups>integration</excludedGroups>
                 </configuration>
             </plugin>
 

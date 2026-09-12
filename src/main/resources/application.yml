@@ -3,10 +3,21 @@ spring:
     import: optional:classpath:application-local.yml,optional:file:./application-local.yml
   application:
     name: scene-ai-code-backend
+  # IDE 改接口/Impl 时先删后写 class，默认安静期过短易导致热重启丢 Bean
+  # poll-interval 必须大于 quiet-period
+  devtools:
+    restart:
+      quiet-period: 1s
+      poll-interval: 2s
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
+  task:
+    scheduling:
+      pool:
+        # 默认 1 线程：精读 Worker 会同步执行分钟级任务，饿死同池的每日清理任务
+        size: 2
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/aiscene?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
@@ -18,9 +29,23 @@ spring:
       port: ${REDIS_PORT:6380}
       password: ${REDIS_PASSWORD:}
       ttl: 86400
+      timeout: 3s
+      connect-timeout: 3s
+      lettuce:
+        shutdown-timeout: 200ms
   session:
     store-type: none
     timeout: 24h
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    # 适配「已有数据的存量库」：首次运行标记基线为 0，再按序应用 V1+ 迁移。
+    # 所有迁移均为 CREATE TABLE IF NOT EXISTS / 幂等 ALTER（含索引级 DROP，不动表/列/数据），存量数据安全。
+    baseline-on-migrate: true
+    baseline-version: 0
+    baseline-description: "legacy baseline"
+    validate-on-migrate: true
+    out-of-order: false
 
 server:
   port: ${SERVER_PORT:8123}
@@ -34,6 +59,10 @@ server:
       timeout: 24h
       cookie:
         max-age: 24h
+        same-site: lax
+
+cors:
+  allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}
 
 springdoc:
   group-configs:
@@ -51,6 +80,21 @@ knife4j:
   enable: true
   setting:
     language: zh_cn
+
+# 健康检查 / 运行信息（context-path=/api，故实际路径为 /api/actuator/health）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      # 公网只返回 {"status":"UP"}；组件明细（DB/Redis 连接信息）不外泄。
+      # 本地排障在 application-local.yml 覆盖为 always。
+      show-details: never
+  info:
+    build:
+      enabled: true
 
 langchain4j:
   open-ai:
