@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "mimosa-finding-ledger-batch/v1",
+  "batchId": "stop-20260911T123754639Z-30424-f62e7f1577fd",
+  "runId": "20260911T123754639Z-30424-f62e7f1577fd",
+  "runStatus": "completed",
+  "coverage": {
+    "status": "complete",
+    "reasons": []
+  },
+  "source": {
+    "component": "zcode-hook",
+    "operationId": "Stop"
+  },
+  "revision": "d5b5f458f835b1f80968b500900c3e56f173a7c0",
+  "diffHash": "1c19528c3199023ef7398ae9bda6bb0cff09cbeaf0d79404c7f5b9443f469987",
+  "rulesVersion": "unavailable",
+  "sessionHash": "015b934a4dc750df55f807a8826630e81322bfe54a23b6ed35840429fadef61d",
+  "reportRef": ".mimosa/reports/task-review-sess_5072bd24-faab-4aba-8ea6-6c46ad524711-20260911T123754639Z-30424-f62e7f1577fd.json",
+  "events": [],
+  "observedFindingIds": [],
+  "verifiedFiles": [
+    {
+      "file": "src/main/java/com/ai/constant/SiteSettingConstant.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/main/java/com/ai/setting/module/ModulesSettingModule.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/main/java/com/ai/service/SiteSettingService.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/main/java/com/ai/service/impl/SiteSettingServiceImpl.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/main/java/com/ai/config/ModuleEnablementService.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/main/java/com/ai/config/AppModuleProperties.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/test/java/com/ai/config/ModuleEnablementServiceTest.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    }
+  ],
+  "recordedAt": "2026-09-11T12:37:55.429Z"
+}

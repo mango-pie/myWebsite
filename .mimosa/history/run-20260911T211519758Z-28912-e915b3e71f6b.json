@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "mimosa-finding-history/v1",
+  "runId": "20260911T211519758Z-28912-e915b3e71f6b",
+  "runStatus": "inconclusive",
+  "errors": [
+    "baseline-read:target/flexx/META-INF/maven/com.mybatis-flex/mybatis-flex-core/pom.xml: baseline_snapshot_unreadable: file is missing from task baseline",
+    "baseline-read:src/main/java/com/ai/interceptor/ModuleGateInterceptor.java: baseline_snapshot_unreadable: file is missing from task baseline",
+    "scan:src/main/java/com/ai/mapper/knowledge/KnowledgeNoteMapper.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImpl.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/test/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImplTest.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/utils/BatchDeletes.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/service/impl/HttpAccessLogServiceImpl.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/service/impl/AiUsageLogServiceImpl.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/test/java/com/ai/utils/BatchDeletesTest.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/setting/module/ModulesSettingModule.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/service/impl/BizStatDailyServiceImpl.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/service/impl/OpsAuditLogServiceImpl.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/interceptor/ModuleGateInterceptor.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/controller/AdminSiteSettingsController.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "scan:src/main/java/com/ai/config/WebMvcConfig.java: scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+    "supply-chain-check:.: stop_budget_exhausted: focused supply-chain check was not run before the gate budget"
+  ],
+  "target": ".",
+  "revision": "d5b5f458f835b1f80968b500900c3e56f173a7c0",
+  "diffHash": "811d6bbc733388556b413b8a2ccb4e63af4710b256c779ae75931775238fc1e7",
+  "rulesVersion": "unavailable",
+  "recordedAt": "2026-09-11T21:15:19.758Z",
+  "timing": {
+    "startedAt": "2026-09-11T21:15:16.739Z",
+    "completedAt": "2026-09-11T21:15:19.758Z",
+    "durationMs": 3019
+  },
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "modelCalls": 0,
+    "measurement": "known-zero"
+  },
+  "findings": {
+    "total": 0,
+    "bySeverity": {},
+    "byStatus": {}
+  },
+  "coverage": {
+    "status": "partial",
+    "reasonCounts": {
+      "baseline_snapshot_unreadable": 2,
+      "scanner_failed": 13,
+      "stop_budget_exhausted": 1,
+      "project_check_failed": 16
+    }
+  },
+  "evidenceBoundary": "static_only",
+  "immutableReport": ".mimosa/reports/task-review-sess_578c7802-4c76-4aa7-bf47-283c8b5797cf-20260911T211519758Z-28912-e915b3e71f6b.json"
+}

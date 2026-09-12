@@ -1,0 +1,74 @@
+# 本地升级预演：用 prod 数据副本验证 Flyway 迁移 + 启动健康，再上生产。
+#
+# 用法：
+#   1) 把生产库导出的 dump 放到 ./deploy/rehearsal/dump/aiscene.sql（首次启动会自动导入）
+#   2) 起基础设施：            docker compose up -d mysql redis
+#   3) 构建 JAR：              ./mvnw -DskipTests package
+#   4) 起应用（含自动迁移）：   docker compose --profile full up app
+#   5) 访问健康检查：           curl http://127.0.0.1:8123/api/actuator/health
+#
+# 说明：默认关闭依赖外部服务（pgvector/MinIO/GPT-SoVITS）的模块，以便应用能独立启动完成迁移验证。
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai-rehearsal-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: aiscene
+      MYSQL_USER: aiscene
+      MYSQL_PASSWORD: aiscene
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"   # 宿主机 3307，避免与本地 3306 冲突
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./deploy/rehearsal/dump:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-rehearsal-redis
+    ports:
+      - "6380:6379"   # 与后端默认 REDIS_PORT=6380 对齐
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    image: eclipse-temurin:17-jre
+    container_name: ai-rehearsal-app
+    profiles: ["full"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./target:/app:ro
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: aiscene
+      DB_USER: aiscene
+      DB_PASSWORD: aiscene
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      # 迁移预演时关闭依赖外部服务的模块，保证应用可独立启动
+      APP_MODULES_KNOWLEDGE: "false"
+      APP_MODULES_READING: "false"
+      APP_MODULES_TTS: "false"
+    command: ["sh", "-c", "java -jar $(ls /app/AI-*.jar | head -n1)"]
+    ports:
+      - "8123:8123"
+
+volumes:
+  mysql-data:

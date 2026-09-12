@@ -1,0 +1,659 @@
+{
+  "schema_version": "mimosa-task-review/v2",
+  "run_id": "20260911T211519758Z-28912-e915b3e71f6b",
+  "run_status": "inconclusive",
+  "errors": [
+    {
+      "stage": "baseline-read",
+      "target": "target/flexx/META-INF/maven/com.mybatis-flex/mybatis-flex-core/pom.xml",
+      "reason": "baseline_snapshot_unreadable: file is missing from task baseline"
+    },
+    {
+      "stage": "baseline-read",
+      "target": "src/main/java/com/ai/interceptor/ModuleGateInterceptor.java",
+      "reason": "baseline_snapshot_unreadable: file is missing from task baseline"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/mapper/knowledge/KnowledgeNoteMapper.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImpl.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/test/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImplTest.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/utils/BatchDeletes.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/service/impl/HttpAccessLogServiceImpl.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/service/impl/AiUsageLogServiceImpl.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/test/java/com/ai/utils/BatchDeletesTest.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/setting/module/ModulesSettingModule.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/service/impl/BizStatDailyServiceImpl.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/service/impl/OpsAuditLogServiceImpl.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/interceptor/ModuleGateInterceptor.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/controller/AdminSiteSettingsController.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "scan",
+      "target": "src/main/java/com/ai/config/WebMvcConfig.java",
+      "reason": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT"
+    },
+    {
+      "stage": "supply-chain-check",
+      "target": ".",
+      "reason": "stop_budget_exhausted: focused supply-chain check was not run before the gate budget"
+    }
+  ],
+  "coverage": {
+    "schema_version": "mimosa-hook-coverage/v1",
+    "status": "partial",
+    "scope": "hook_observed_diff",
+    "baseline": {
+      "complete": true,
+      "captured_files": 601,
+      "candidate_limit": 5000,
+      "truncated": false,
+      "enumeration_error_count": 0,
+      "snapshot_error_count": 0,
+      "compensated_target_count": 12
+    },
+    "change_tracking": {
+      "touched_observed": 7,
+      "touched_retained": 7,
+      "truncated": false,
+      "bash_mutation": true,
+      "bash_discovered": 14,
+      "bash_discovery_limit": 80,
+      "bash_discovery_truncated": false
+    },
+    "candidates": {
+      "eligible_files": 14,
+      "selected_files": 14,
+      "limit": 20,
+      "truncated": false
+    },
+    "scanning": {
+      "required_files": 13,
+      "scanned_files": 0,
+      "skipped_files": 0,
+      "failed_files": 13,
+      "project_checks_required": 1,
+      "project_checks_completed": 0
+    },
+    "notification": {
+      "eligible_findings": 0,
+      "detailed_findings": 0,
+      "detail_limit": 3,
+      "truncated": false
+    },
+    "reason_counts": {
+      "baseline_snapshot_unreadable": 2,
+      "scanner_failed": 13,
+      "stop_budget_exhausted": 1,
+      "project_check_failed": 16
+    },
+    "reasons": [
+      {
+        "code": "baseline_snapshot_unreadable",
+        "stage": "baseline-read",
+        "target": "target/flexx/META-INF/maven/com.mybatis-flex/mybatis-flex-core/pom.xml",
+        "detail": "file is missing from task baseline",
+        "affects_completion": true
+      },
+      {
+        "code": "baseline_snapshot_unreadable",
+        "stage": "baseline-read",
+        "target": "src/main/java/com/ai/interceptor/ModuleGateInterceptor.java",
+        "detail": "file is missing from task baseline",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/mapper/knowledge/KnowledgeNoteMapper.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImpl.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/test/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImplTest.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/utils/BatchDeletes.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/impl/HttpAccessLogServiceImpl.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/impl/AiUsageLogServiceImpl.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/test/java/com/ai/utils/BatchDeletesTest.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/setting/module/ModulesSettingModule.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/impl/BizStatDailyServiceImpl.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/impl/OpsAuditLogServiceImpl.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/interceptor/ModuleGateInterceptor.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/controller/AdminSiteSettingsController.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "scanner_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/config/WebMvcConfig.java",
+        "detail": "spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "stop_budget_exhausted",
+        "stage": "supply-chain-check",
+        "target": ".",
+        "detail": "focused supply-chain check was not run before the gate budget",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "baseline-read",
+        "target": "target/flexx/META-INF/maven/com.mybatis-flex/mybatis-flex-core/pom.xml",
+        "detail": "baseline_snapshot_unreadable: file is missing from task baseline",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "baseline-read",
+        "target": "src/main/java/com/ai/interceptor/ModuleGateInterceptor.java",
+        "detail": "baseline_snapshot_unreadable: file is missing from task baseline",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/mapper/knowledge/KnowledgeNoteMapper.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImpl.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/test/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImplTest.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/utils/BatchDeletes.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/impl/HttpAccessLogServiceImpl.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/impl/AiUsageLogServiceImpl.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/test/java/com/ai/utils/BatchDeletesTest.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/setting/module/ModulesSettingModule.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/impl/BizStatDailyServiceImpl.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/service/impl/OpsAuditLogServiceImpl.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/interceptor/ModuleGateInterceptor.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/controller/AdminSiteSettingsController.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "scan",
+        "target": "src/main/java/com/ai/config/WebMvcConfig.java",
+        "detail": "scanner_failed: spawnSync C:\\Program Files\\nodejs\\node.exe ETIMEDOUT",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "supply-chain-check",
+        "target": ".",
+        "detail": "stop_budget_exhausted: focused supply-chain check was not run before the gate budget",
+        "affects_completion": true
+      }
+    ],
+    "reasons_truncated": false
+  },
+  "generated_at": "2026-09-11T21:15:19.758Z",
+  "session_id": "sess_578c7802-4c76-4aa7-bf47-283c8b5797cf",
+  "target": ".",
+  "revision": "d5b5f458f835b1f80968b500900c3e56f173a7c0",
+  "rules_version": "unavailable",
+  "diff_hash": "811d6bbc733388556b413b8a2ccb4e63af4710b256c779ae75931775238fc1e7",
+  "diff": {
+    "algorithm": "sha256",
+    "changed_file_count": 14,
+    "changed_files": [
+      {
+        "file": "src/main/java/com/ai/config/WebMvcConfig.java",
+        "ranges": [
+          {
+            "start": 4,
+            "end": 4
+          },
+          {
+            "start": 27,
+            "end": 29
+          },
+          {
+            "start": 53,
+            "end": 65
+          }
+        ],
+        "before_hash": "2c2509997b06400e9da30cfeb99061ce148160187f8a7c9267b3969407a3b932",
+        "after_hash": "3060a48882f4fc472980dbf650970e5011e46253bedd3fba73f934b3a608755b"
+      },
+      {
+        "file": "src/main/java/com/ai/controller/AdminSiteSettingsController.java",
+        "ranges": [
+          {
+            "start": 52,
+            "end": 54
+          }
+        ],
+        "before_hash": "ab6edf8a495f7bcb46d1814049ef24bcb4cfa88a16316a542d8535b6840eb4bd",
+        "after_hash": "9f179bdedf26e5fae053fc131f8dd7335154c518bc24aa5033425044823074d6"
+      },
+      {
+        "file": "src/main/java/com/ai/interceptor/ModuleGateInterceptor.java",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 102
+          }
+        ],
+        "before_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "after_hash": "464fdaf489018f18b06aa6a67ed1128ef468f1f660554bf2c7942c6dcbd4b095"
+      },
+      {
+        "file": "src/main/java/com/ai/mapper/knowledge/KnowledgeNoteMapper.java",
+        "ranges": [
+          {
+            "start": 5,
+            "end": 8
+          },
+          {
+            "start": 11,
+            "end": 63
+          }
+        ],
+        "before_hash": "275b44606bd555c130f5c8d231aed5580e09634bc2dcf0f40d68dcb3ca653b53",
+        "after_hash": "ea747b2eeacead6fc9ed9ba617dba63b06d3a944438f04ea712526ab57ef0690"
+      },
+      {
+        "file": "src/main/java/com/ai/service/impl/AiUsageLogServiceImpl.java",
+        "ranges": [
+          {
+            "start": 16,
+            "end": 16
+          },
+          {
+            "start": 200,
+            "end": 201
+          }
+        ],
+        "before_hash": "446c7504cf79b3f205806af29b8d84d4e56b12d1479bd3647fec6e887f4d1c1c",
+        "after_hash": "01e0a5ae6c5e13ad8d1c93489a60cfe7a4de2c1881683998d19eabe3a2bc7a3d"
+      },
+      {
+        "file": "src/main/java/com/ai/service/impl/BizStatDailyServiceImpl.java",
+        "ranges": [
+          {
+            "start": 15,
+            "end": 15
+          },
+          {
+            "start": 118,
+            "end": 119
+          }
+        ],
+        "before_hash": "5ad5b13547c64b04712a75715f503785df76cb53762ca0bb222e63fa1eb8d813",
+        "after_hash": "90bc38569c9ddaa56dcc4e3f8c00e295032926d11cfd0fe5e2bbca35c6754201"
+      },
+      {
+        "file": "src/main/java/com/ai/service/impl/HttpAccessLogServiceImpl.java",
+        "ranges": [
+          {
+            "start": 11,
+            "end": 11
+          },
+          {
+            "start": 102,
+            "end": 103
+          }
+        ],
+        "before_hash": "09c1bebb4f5717f3931db6c7fa0940511349f64335f7fb1277dd012d7e77f147",
+        "after_hash": "aeba61128555085cbc9462c8f26fc1287d92a894cb30aef1c932c5ab6c0668c8"
+      },
+      {
+        "file": "src/main/java/com/ai/service/impl/OpsAuditLogServiceImpl.java",
+        "ranges": [
+          {
+            "start": 13,
+            "end": 13
+          },
+          {
+            "start": 116,
+            "end": 117
+          }
+        ],
+        "before_hash": "7b21edec4ac4a275aba1e252fdfa4df6c5d6c5151336abb39da6b28c1c8911e9",
+        "after_hash": "67c2938bb73191aefb63e88772c4ec96a535d8d0c34892f86abcf3fa57264a5f"
+      },
+      {
+        "file": "src/main/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImpl.java",
+        "ranges": [
+          {
+            "start": 82,
+            "end": 82
+          },
+          {
+            "start": 84,
+            "end": 86
+          },
+          {
+            "start": 88,
+            "end": 91
+          },
+          {
+            "start": 93,
+            "end": 95
+          },
+          {
+            "start": 97,
+            "end": 104
+          },
+          {
+            "start": 121,
+            "end": 122
+          },
+          {
+            "start": 124,
+            "end": 132
+          },
+          {
+            "start": 135,
+            "end": 140
+          },
+          {
+            "start": 142,
+            "end": 149
+          }
+        ],
+        "before_hash": "d225a07d2d21c69d8c69e006b4bcfa777f663eb579e58bd531ad8c524ef26cc0",
+        "after_hash": "4eff242191bffe38f00d555a93f23ca8510430de4a1aba88904f536d45dcce14"
+      },
+      {
+        "file": "src/main/java/com/ai/setting/module/ModulesSettingModule.java",
+        "ranges": [
+          {
+            "start": 73,
+            "end": 73
+          }
+        ],
+        "before_hash": "c2726bf9b0a9352aeaa7ed738494158c5581116c5ef4fa944a8a04eed9918938",
+        "after_hash": "3e35d121db7994a82d68bd412b19617e4f187fd6305d8e3be2e3baace49298d4"
+      },
+      {
+        "file": "src/main/java/com/ai/utils/BatchDeletes.java",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 42
+          }
+        ],
+        "before_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "after_hash": "6dfcd54653281502a21e20ebd3cfb5b5a8eebbfbccd2678e7c8530eea0563d91"
+      },
+      {
+        "file": "src/test/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImplTest.java",
+        "ranges": [
+          {
+            "start": 6,
+            "end": 6
+          },
+          {
+            "start": 15,
+            "end": 15
+          },
+          {
+            "start": 25,
+            "end": 25
+          },
+          {
+            "start": 29,
+            "end": 29
+          },
+          {
+            "start": 31,
+            "end": 33
+          },
+          {
+            "start": 124,
+            "end": 169
+          }
+        ],
+        "before_hash": "98abbca58621deae1d749bb1d1366fae601a1ccea39e5bbc17c9c3dbff0bbcca",
+        "after_hash": "db96dd210465bbb8e4f2b14fdfaa9e6c0650b327aff29a0c10c2b99b395c8b98"
+      },
+      {
+        "file": "src/test/java/com/ai/utils/BatchDeletesTest.java",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 33
+          }
+        ],
+        "before_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "after_hash": "f6ebcbeed1885cb56c49f078c7f695e9293a68a5173a2cf98ef90b7cead54b5e"
+      },
+      {
+        "file": "target/flexx/META-INF/maven/com.mybatis-flex/mybatis-flex-core/pom.xml",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 108
+          }
+        ],
+        "before_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "after_hash": "4985fcf09c941a95c18ed04a14356a69a04593a5c235b02b205356d8b0e06dea"
+      }
+    ]
+  },
+  "timing": {
+    "started_at": "2026-09-11T21:15:16.739Z",
+    "completed_at": "2026-09-11T21:15:19.758Z",
+    "duration_ms": 3019,
+    "measurement": "hook_wall_clock"
+  },
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "model_calls": 0,
+    "measurement": "known-zero"
+  },
+  "telemetry": {
+    "schemaVersion": "mimosa-gate-telemetry/v1",
+    "profile": "gate",
+    "operation": "Stop",
+    "outcome": "partial/INCONCLUSIVE",
+    "latencyMs": 3019,
+    "peakMemoryBytes": 85602304,
+    "memoryMeasurement": "max-observed-process-rss",
+    "scannedFiles": 0,
+    "cache": {
+      "hits": 0,
+      "misses": 0,
+      "measurement": "not-applicable"
+    },
+    "denyCount": 0,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "total": 0,
+      "modelCalls": 0,
+      "measurement": "known-zero"
+    }
+  },
+  "finding_count": 0,
+  "rewake_finding_count": 0,
+  "evidence_boundary": {
+    "scan": "candidate",
+    "static_fix_verification": "observed_static_only",
+    "runtime_verification": "not_performed"
+  },
+  "finding_events": [],
+  "findings": [],
+  "artifacts": {
+    "immutable_report": ".mimosa/reports/task-review-sess_578c7802-4c76-4aa7-bf47-283c8b5797cf-20260911T211519758Z-28912-e915b3e71f6b.json",
+    "latest_report": ".mimosa/reports/task-review-sess_578c7802-4c76-4aa7-bf47-283c8b5797cf.json",
+    "history_summary": ".mimosa/history/run-20260911T211519758Z-28912-e915b3e71f6b.json"
+  }
+}

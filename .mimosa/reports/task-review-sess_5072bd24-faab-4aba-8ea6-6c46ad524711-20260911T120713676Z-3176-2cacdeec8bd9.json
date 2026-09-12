@@ -1,0 +1,190 @@
+{
+  "schema_version": "mimosa-task-review/v2",
+  "run_id": "20260911T120713676Z-3176-2cacdeec8bd9",
+  "run_status": "completed",
+  "errors": [],
+  "coverage": {
+    "schema_version": "mimosa-hook-coverage/v1",
+    "status": "complete",
+    "scope": "hook_observed_diff",
+    "baseline": {
+      "complete": true,
+      "captured_files": 597,
+      "candidate_limit": 5000,
+      "truncated": false,
+      "enumeration_error_count": 0,
+      "snapshot_error_count": 0,
+      "compensated_target_count": 4
+    },
+    "change_tracking": {
+      "touched_observed": 4,
+      "touched_retained": 4,
+      "truncated": false,
+      "bash_mutation": false,
+      "bash_discovered": 0,
+      "bash_discovery_limit": 80,
+      "bash_discovery_truncated": false
+    },
+    "candidates": {
+      "eligible_files": 4,
+      "selected_files": 4,
+      "limit": 20,
+      "truncated": false
+    },
+    "scanning": {
+      "required_files": 4,
+      "scanned_files": 4,
+      "skipped_files": 0,
+      "failed_files": 0,
+      "project_checks_required": 0,
+      "project_checks_completed": 0
+    },
+    "notification": {
+      "eligible_findings": 0,
+      "detailed_findings": 0,
+      "detail_limit": 3,
+      "truncated": false
+    },
+    "reason_counts": {},
+    "reasons": [],
+    "reasons_truncated": false
+  },
+  "generated_at": "2026-09-11T12:07:13.676Z",
+  "session_id": "sess_5072bd24-faab-4aba-8ea6-6c46ad524711",
+  "target": ".",
+  "revision": "d5b5f458f835b1f80968b500900c3e56f173a7c0",
+  "rules_version": "unavailable",
+  "diff_hash": "79f9be25f69914db3486950623e3719776b52cc92ded4e9192a3733bb0edc15b",
+  "diff": {
+    "algorithm": "sha256",
+    "changed_file_count": 4,
+    "changed_files": [
+      {
+        "file": "src/main/java/com/ai/job/KnowledgeReadingJobWorker.java",
+        "ranges": [
+          {
+            "start": 10,
+            "end": 10
+          },
+          {
+            "start": 16,
+            "end": 18
+          },
+          {
+            "start": 21,
+            "end": 22
+          },
+          {
+            "start": 27,
+            "end": 33
+          },
+          {
+            "start": 47,
+            "end": 48
+          },
+          {
+            "start": 75,
+            "end": 84
+          }
+        ],
+        "before_hash": "1ff955a88fc1f60ae942f3a1f280f93f12914fc1e435d3d06e4dc1b17553ef7d",
+        "after_hash": "92b685453a3ee1207e1a809a4f95d25b7a21d105033fe1aa650ed1d7afce6ede"
+      },
+      {
+        "file": "src/main/java/com/ai/service/knowledge/impl/KnowledgeMergeDistillServiceImpl.java",
+        "ranges": [
+          {
+            "start": 12,
+            "end": 12
+          },
+          {
+            "start": 57,
+            "end": 59
+          },
+          {
+            "start": 141,
+            "end": 157
+          }
+        ],
+        "before_hash": "811be74f47cdad69649ade0354a66c38232e52c736343a84b9e695847ff50236",
+        "after_hash": "3eeee774a93bd2584af18fea125111e951d519561dbdcce1da732bcc54451786"
+      },
+      {
+        "file": "src/main/java/com/ai/service/knowledge/impl/KnowledgeReadingJobServiceImpl.java",
+        "ranges": [
+          {
+            "start": 81,
+            "end": 81
+          }
+        ],
+        "before_hash": "cefddbb52a20b4ed368e31a259eb56bb4044f7e29a8024e98641fef3662a924c",
+        "after_hash": "45a54270f58222df656279248ac6c331f4dec394ecd515adbb9914dba507e5d5"
+      },
+      {
+        "file": "src/test/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImplTest.java",
+        "ranges": [
+          {
+            "start": 67,
+            "end": 67
+          },
+          {
+            "start": 69,
+            "end": 69
+          }
+        ],
+        "before_hash": "f3a4b892115ca7df0d800f604a6926420df1b9a0eac0e79f0d8665a8cd2c9cda",
+        "after_hash": "98abbca58621deae1d749bb1d1366fae601a1ccea39e5bbc17c9c3dbff0bbcca"
+      }
+    ]
+  },
+  "timing": {
+    "started_at": "2026-09-11T12:07:10.994Z",
+    "completed_at": "2026-09-11T12:07:13.676Z",
+    "duration_ms": 2682,
+    "measurement": "hook_wall_clock"
+  },
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "model_calls": 0,
+    "measurement": "known-zero"
+  },
+  "telemetry": {
+    "schemaVersion": "mimosa-gate-telemetry/v1",
+    "profile": "gate",
+    "operation": "Stop",
+    "outcome": "complete",
+    "latencyMs": 2682,
+    "peakMemoryBytes": 129445888,
+    "memoryMeasurement": "max-observed-process-rss",
+    "scannedFiles": 4,
+    "cache": {
+      "hits": 0,
+      "misses": 0,
+      "measurement": "not-applicable"
+    },
+    "denyCount": 0,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "total": 0,
+      "modelCalls": 0,
+      "measurement": "known-zero"
+    }
+  },
+  "finding_count": 0,
+  "rewake_finding_count": 0,
+  "evidence_boundary": {
+    "scan": "candidate",
+    "static_fix_verification": "observed_static_only",
+    "runtime_verification": "not_performed"
+  },
+  "finding_events": [],
+  "findings": [],
+  "artifacts": {
+    "immutable_report": ".mimosa/reports/task-review-sess_5072bd24-faab-4aba-8ea6-6c46ad524711-20260911T120713676Z-3176-2cacdeec8bd9.json",
+    "latest_report": ".mimosa/reports/task-review-sess_5072bd24-faab-4aba-8ea6-6c46ad524711.json",
+    "history_summary": ".mimosa/history/run-20260911T120713676Z-3176-2cacdeec8bd9.json"
+  }
+}

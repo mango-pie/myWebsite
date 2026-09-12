@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "mimosa-finding-ledger-batch/v1",
+  "batchId": "stop-20260911T120713676Z-3176-2cacdeec8bd9",
+  "runId": "20260911T120713676Z-3176-2cacdeec8bd9",
+  "runStatus": "completed",
+  "coverage": {
+    "status": "complete",
+    "reasons": []
+  },
+  "source": {
+    "component": "zcode-hook",
+    "operationId": "Stop"
+  },
+  "revision": "d5b5f458f835b1f80968b500900c3e56f173a7c0",
+  "diffHash": "79f9be25f69914db3486950623e3719776b52cc92ded4e9192a3733bb0edc15b",
+  "rulesVersion": "unavailable",
+  "sessionHash": "015b934a4dc750df55f807a8826630e81322bfe54a23b6ed35840429fadef61d",
+  "reportRef": ".mimosa/reports/task-review-sess_5072bd24-faab-4aba-8ea6-6c46ad524711-20260911T120713676Z-3176-2cacdeec8bd9.json",
+  "events": [],
+  "observedFindingIds": [],
+  "verifiedFiles": [
+    {
+      "file": "src/main/java/com/ai/job/KnowledgeReadingJobWorker.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/main/java/com/ai/service/knowledge/impl/KnowledgeMergeDistillServiceImpl.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/main/java/com/ai/service/knowledge/impl/KnowledgeReadingJobServiceImpl.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "src/test/java/com/ai/service/knowledge/impl/KnowledgeNoteServiceImplTest.java",
+      "direct": "complete",
+      "projectContext": "partial"
+    }
+  ],
+  "recordedAt": "2026-09-11T12:07:14.530Z"
+}
