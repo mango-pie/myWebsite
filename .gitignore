@@ -46,3 +46,6 @@ hs_err_pid*.jfr
 *.jfr
 debug-*.log
 replay_pid*.log
+
+# Mimosa 安全扫描/钩子本地状态
+.mimosa/
