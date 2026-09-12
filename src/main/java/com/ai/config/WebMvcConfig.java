@@ -1,5 +1,6 @@
 package com.ai.config;
 
+import com.ai.interceptor.AiRateLimitInterceptor;
 import com.ai.interceptor.MaintenanceModeInterceptor;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +11,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -22,6 +25,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Resource
     private MaintenanceModeInterceptor maintenanceModeInterceptor;
+
+    @Resource
+    private AiRateLimitInterceptor aiRateLimitInterceptor;
+
+    @Resource
+    private AiRateLimitProperties aiRateLimitProperties;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -46,5 +55,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/uploads/**",
                         "/error"
                 );
+
+        // AI 端点限流：只挂配置声明的高成本路径，未启用时不上拦截器
+        if (aiRateLimitProperties.isEnabled() && !aiRateLimitProperties.getRules().isEmpty()) {
+            List<String> patterns = new ArrayList<>();
+            aiRateLimitProperties.getRules().forEach(rule -> patterns.add(rule.getPattern()));
+            registry.addInterceptor(aiRateLimitInterceptor)
+                    .addPathPatterns(patterns);
+        }
     }
 }

@@ -223,6 +223,22 @@ app:
   redis:
     mode: auto
     ping-timeout-ms: 2000
+  ai-rate-limit:
+    # AI 高成本端点限流（每登录用户/来源 IP 固定窗口计数），规则按顺序取第一条命中
+    enabled: true
+    rules:
+      - pattern: /chat/chat                 # 智能体对话 SSE（多步工具调用 + LLM）
+        limit: 20
+        window-seconds: 60
+      - pattern: /chat/attachment           # 图片转述（视觉模型）
+        limit: 20
+        window-seconds: 60
+      - pattern: /kb/chat*                  # 知识库问答（RAG 检索 + AI，含 stream）
+        limit: 20
+        window-seconds: 60
+      - pattern: /admin/knowledge/ingest/*  # 抓取/蒸馏（Jina + 多轮 LLM）
+        limit: 10
+        window-seconds: 60
   modules:
     ops: true
     blog: true
