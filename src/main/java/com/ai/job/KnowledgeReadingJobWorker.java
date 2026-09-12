@@ -9,18 +9,30 @@ import com.ai.model.entity.knowledge.KnowledgeReadingJob;
 import com.ai.model.vo.knowledge.KnowledgeIngestBatchUrlVO;
 import com.ai.service.knowledge.KnowledgeMergeDistillService;
 import com.ai.service.knowledge.KnowledgeReadingJobService;
+import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /**
  * 精读合蒸任务 Worker：全局串行消费 PENDING 任务。
+ * 认领与卡死收割是毫秒级 DB 操作，留在调度线程；任务执行移交专用单线程池，
+ * 避免分钟级蒸馏任务占满调度器线程、饿死其他 @Scheduled 任务与卡死自愈。
  */
 @Slf4j
 @ConditionalOnModule("reading")
 @Component
-public class KnowledgeReadingJobWorker {
+public class KnowledgeReadingJobWorker implements AutoCloseable {
+
+    private final ExecutorService jobExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "reading-job-worker");
+        t.setDaemon(true);
+        return t;
+    });
 
     @Resource
     private KnowledgeReadingJobService knowledgeReadingJobService;
@@ -36,7 +48,8 @@ public class KnowledgeReadingJobWorker {
             if (job == null) {
                 return;
             }
-            runJob(job);
+            // claimNext 的 RUNNING 计数检查保证全局同时至多一个任务，移交线程池不引入并发
+            jobExecutor.execute(() -> runJob(job));
         } catch (Exception e) {
             log.error("Knowledge reading job worker failed", e);
         }
@@ -61,5 +74,15 @@ public class KnowledgeReadingJobWorker {
                     e.getMessage() == null ? "精读任务执行异常" : e.getMessage());
             log.error("Knowledge reading job unexpected failed, jobId={}", jobId, e);
         }
+    }
+
+    /**
+     * 停机中断执行中的任务：任务可能停在半路，重启后由 failStuckRunning 收割，
+     * 与进程被 kill 的行为一致，无需额外补偿。
+     */
+    @Override
+    @PreDestroy
+    public void close() {
+        jobExecutor.shutdownNow();
     }
 }

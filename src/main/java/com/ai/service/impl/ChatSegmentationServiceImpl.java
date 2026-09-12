@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -35,6 +36,9 @@ public class ChatSegmentationServiceImpl implements ChatSegmentationService {
 
     @Resource
     private AiUsageLogService aiUsageLogService;
+
+    @Resource(name = "aiTaskExecutor")
+    private Executor aiTaskExecutor;
 
     @Override
     public List<String> segment(String text) {
@@ -81,11 +85,19 @@ public class ChatSegmentationServiceImpl implements ChatSegmentationService {
                     chatRuntimeSettings.segmentationStyle(),
                     chatRuntimeSettings.segmentationMaxSegments()
             );
-            CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> chatModel.chat(prompt));
-            String raw = future.get(
-                    (long) (chatRuntimeSettings.segmentationTimeoutSeconds() * 1000),
-                    TimeUnit.MILLISECONDS
-            );
+            CompletableFuture<String> future = CompletableFuture.supplyAsync(
+                    () -> chatModel.chat(prompt), aiTaskExecutor);
+            String raw;
+            try {
+                raw = future.get(
+                        (long) (chatRuntimeSettings.segmentationTimeoutSeconds() * 1000),
+                        TimeUnit.MILLISECONDS
+                );
+            } catch (TimeoutException e) {
+                // 超时后取消底层任务，避免长调用继续占用线程
+                future.cancel(true);
+                throw e;
+            }
             recordSegmentationUsage(true, startNs, null);
             List<String> segments = ChatSegmentationUtils.parseSegmentsFromModelOutput(
                     raw,

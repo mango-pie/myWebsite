@@ -12,6 +12,7 @@ import com.ai.model.vo.ops.BizStatSeriesPointVO;
 import com.ai.model.vo.ops.BizStatsOverviewVO;
 import com.ai.service.BizStatDailyService;
 import com.ai.setting.runtime.OpsRuntimeSettings;
+import com.ai.utils.BatchDeletes;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Slf4j
 @ConditionalOnModule("ops")
@@ -34,6 +36,9 @@ public class BizStatDailyServiceImpl implements BizStatDailyService {
 
     @Resource
     private OpsRuntimeSettings opsRuntimeSettings;
+
+    @Resource(name = "opsLogExecutor")
+    private Executor opsLogExecutor;
 
     @Override
     public void increment(String metric, long delta) {
@@ -52,7 +57,7 @@ public class BizStatDailyServiceImpl implements BizStatDailyService {
             } catch (Exception e) {
                 log.warn("Write biz_stat_daily failed: {}", e.getMessage());
             }
-        });
+        }, opsLogExecutor);
     }
 
     @Override
@@ -110,8 +115,8 @@ public class BizStatDailyServiceImpl implements BizStatDailyService {
     @Override
     public int purgeExpired() {
         LocalDate cutoff = LocalDate.now().minusDays(BizStatMetricConstant.RETAIN_DAYS);
-        return bizStatDailyMapper.deleteByQuery(QueryWrapper.create()
-                .lt(BizStatDaily::getStatDate, cutoff));
+        return BatchDeletes.purge(bizStatDailyMapper,
+                () -> QueryWrapper.create().lt(BizStatDaily::getStatDate, cutoff));
     }
 
     private LocalDate[] normalizeRange(LocalDate from, LocalDate to) {
