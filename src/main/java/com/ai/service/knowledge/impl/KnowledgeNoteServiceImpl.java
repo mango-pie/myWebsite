@@ -67,83 +67,60 @@ public class KnowledgeNoteServiceImpl implements KnowledgeNoteService {
         String publishStatus = request == null ? null : request.getPublishStatus();
         String indexStatus = request == null ? null : request.getIndexStatus();
 
-        List<SourceDocument> ownedSources = sourceDocumentMapper.selectListByQuery(
-                QueryWrapper.create().eq("user_id", userId));
-        if (ownedSources.isEmpty()) {
+        // 搜索/过滤统一下推 SQL（JOIN source_document）：只取命中行的裁剪列 + 当页来源元数据，
+        // 不再全量拉笔记/来源到内存过滤（原「分页后再全量重查过滤」的做法随日志增长会劣化）
+        String keywordLike = buildLikeKeyword(keyword);
+        long totalRow = knowledgeNoteMapper.countSearch(userId, keywordLike, sourceType,
+                publishStatus, indexStatus);
+        if (totalRow == 0) {
             return new Page<>(pageNum, pageSize, 0);
         }
-        Map<Long, SourceDocument> sourceMap = ownedSources.stream()
-                .collect(Collectors.toMap(SourceDocument::getId, Function.identity(), (a, b) -> a));
-        Set<Long> sourceIds = sourceMap.keySet();
+        List<KnowledgeNote> noteList = knowledgeNoteMapper.selectSearchPage(userId, keywordLike, sourceType,
+                publishStatus, indexStatus, (long) (pageNum - 1) * pageSize, pageSize);
 
-        QueryWrapper wrapper = QueryWrapper.create()
-                .in("source_document_id", sourceIds)
-                .eq("publish_status", publishStatus, StrUtil.isNotBlank(publishStatus))
-                .eq("index_status", indexStatus, StrUtil.isNotBlank(indexStatus))
-                .orderBy("update_time", false);
-
-        Page<KnowledgeNote> page = knowledgeNoteMapper.paginate(Page.of(pageNum, pageSize), wrapper);
-        List<KnowledgeNoteVO> records = new ArrayList<>();
-        for (KnowledgeNote note : page.getRecords()) {
+        Map<Long, SourceDocument> sourceMap = loadSourceMetaMap(noteList);
+        List<KnowledgeNoteVO> records = new ArrayList<>(noteList.size());
+        for (KnowledgeNote note : noteList) {
             SourceDocument source = sourceMap.get(note.getSourceDocumentId());
-            if (source == null) {
-                continue;
+            if (source != null) {
+                records.add(toVO(note, source));
             }
-            if (StrUtil.isNotBlank(sourceType) && !sourceType.equalsIgnoreCase(source.getSourceType())) {
-                continue;
-            }
-            if (StrUtil.isNotBlank(keyword)) {
-                String hay = StrUtil.blankToDefault(note.getTitle(), "")
-                        + " "
-                        + StrUtil.blankToDefault(note.getTags(), "")
-                        + " "
-                        + StrUtil.blankToDefault(source.getSourceUrl(), "");
-                if (!hay.toLowerCase().contains(keyword.toLowerCase())) {
-                    continue;
-                }
-            }
-            records.add(toVO(note, source));
         }
-        // keyword/sourceType filter after paginate is imperfect; for V1 re-query when filters need accuracy
-        if (StrUtil.isNotBlank(keyword) || StrUtil.isNotBlank(sourceType)) {
-            List<KnowledgeNote> all = knowledgeNoteMapper.selectListByQuery(
-                    QueryWrapper.create()
-                            .in("source_document_id", sourceIds)
-                            .eq("publish_status", publishStatus, StrUtil.isNotBlank(publishStatus))
-                            .eq("index_status", indexStatus, StrUtil.isNotBlank(indexStatus))
-                            .orderBy("update_time", false));
-            List<KnowledgeNoteVO> filtered = new ArrayList<>();
-            for (KnowledgeNote note : all) {
-                SourceDocument source = sourceMap.get(note.getSourceDocumentId());
-                if (source == null) {
-                    continue;
-                }
-                if (StrUtil.isNotBlank(sourceType) && !sourceType.equalsIgnoreCase(source.getSourceType())) {
-                    continue;
-                }
-                if (StrUtil.isNotBlank(keyword)) {
-                    String hay = StrUtil.blankToDefault(note.getTitle(), "")
-                            + " "
-                            + StrUtil.blankToDefault(note.getTags(), "")
-                            + " "
-                            + StrUtil.blankToDefault(source.getSourceUrl(), "");
-                    if (!hay.toLowerCase().contains(keyword.toLowerCase())) {
-                        continue;
-                    }
-                }
-                filtered.add(toVO(note, source));
-            }
-            int from = Math.max(0, (pageNum - 1) * pageSize);
-            int to = Math.min(filtered.size(), from + pageSize);
-            List<KnowledgeNoteVO> slice = from >= filtered.size() ? List.of() : filtered.subList(from, to);
-            Page<KnowledgeNoteVO> voPage = new Page<>(pageNum, pageSize, filtered.size());
-            voPage.setRecords(slice);
-            return voPage;
-        }
-
-        Page<KnowledgeNoteVO> voPage = new Page<>(page.getPageNumber(), page.getPageSize(), page.getTotalRow());
+        Page<KnowledgeNoteVO> voPage = new Page<>(pageNum, pageSize, totalRow);
         voPage.setRecords(records);
         return voPage;
+    }
+
+    /**
+     * LIKE 关键词转义：\ % _ 视为字面量（MySQL LIKE 默认转义符为反斜杠），再包 % 做包含匹配。
+     * 不 trim，保持与原 contains 语义一致。
+     */
+    private String buildLikeKeyword(String keyword) {
+        if (StrUtil.isBlank(keyword)) {
+            return null;
+        }
+        String escaped = keyword
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + escaped + "%";
+    }
+
+    /**
+     * 只为当页笔记加载来源元数据三列（id/sourceType/sourceUrl），供 VO 组装。
+     */
+    private Map<Long, SourceDocument> loadSourceMetaMap(List<KnowledgeNote> notes) {
+        if (notes.isEmpty()) {
+            return Map.of();
+        }
+        Set<Long> ids = notes.stream()
+                .map(KnowledgeNote::getSourceDocumentId)
+                .collect(Collectors.toSet());
+        return sourceDocumentMapper.selectListByQuery(QueryWrapper.create()
+                        .in("id", ids)
+                        .select(SourceDocument::getId, SourceDocument::getSourceType, SourceDocument::getSourceUrl))
+                .stream()
+                .collect(Collectors.toMap(SourceDocument::getId, Function.identity(), (a, b) -> a));
     }
 
     @Override
@@ -228,7 +205,10 @@ public class KnowledgeNoteServiceImpl implements KnowledgeNoteService {
         if (note == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "精读笔记不存在");
         }
-        SourceDocument source = sourceDocumentMapper.selectOneById(note.getSourceDocumentId());
+        // 归属校验只取两列，不拉 raw_text 全文
+        SourceDocument source = sourceDocumentMapper.selectOneByQuery(QueryWrapper.create()
+                .eq("id", note.getSourceDocumentId())
+                .select(SourceDocument::getId, SourceDocument::getUserId));
         if (source == null || !Objects.equals(source.getUserId(), userId)) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "精读笔记不存在");
         }
@@ -240,7 +220,9 @@ public class KnowledgeNoteServiceImpl implements KnowledgeNoteService {
         if (note == null) {
             return null;
         }
-        SourceDocument source = sourceDocumentMapper.selectOneById(note.getSourceDocumentId());
+        SourceDocument source = sourceDocumentMapper.selectOneByQuery(QueryWrapper.create()
+                .eq("id", note.getSourceDocumentId())
+                .select(SourceDocument::getId, SourceDocument::getSourceType, SourceDocument::getSourceUrl));
         return toVO(note, source);
     }
 
