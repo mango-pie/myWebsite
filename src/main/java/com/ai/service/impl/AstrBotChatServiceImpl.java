@@ -1,7 +1,5 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
@@ -12,25 +10,19 @@ import com.ai.exception.ErrorCode;
 import com.ai.model.dto.chat.ChatMessageSegment;
 import com.ai.model.vo.chat.ChatConfigVO;
 import com.ai.service.AstrBotChatService;
-import com.ai.service.IntegrationCredentialsService;
-import com.ai.setting.IntegrationClientCache;
-import io.netty.channel.ChannelOption;
 import jakarta.annotation.Resource;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
-import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@ConditionalOnModule("chat")
 @Service
 public class AstrBotChatServiceImpl implements AstrBotChatService {
 
@@ -57,21 +49,14 @@ public class AstrBotChatServiceImpl implements AstrBotChatService {
     @Resource
     private AstrBotProperties astrBotProperties;
 
-    @Resource
-    private IntegrationCredentialsService credentials;
-
-    @Resource
-    private IntegrationClientCache integrationClientCache;
-
-    private volatile long cachedVersion = -1;
-    private volatile String cachedFingerprint;
-    private volatile WebClient cachedWebClient;
+    @Resource(name = "astrBotWebClient")
+    private WebClient astrBotWebClient;
 
     @Override
     public boolean isAvailable() {
         try {
             // 轻量探测 configs 接口
-            client().get()
+            astrBotWebClient.get()
                     .uri("/api/v1/configs")
                     .retrieve()
                     .bodyToMono(String.class)
@@ -85,7 +70,7 @@ public class AstrBotChatServiceImpl implements AstrBotChatService {
     @Override
     public List<ChatConfigVO> listConfigs() {
         try {
-            String raw = client().get()
+            String raw = astrBotWebClient.get()
                     .uri("/api/v1/configs")
                     .retrieve()
                     .bodyToMono(String.class)
@@ -191,7 +176,7 @@ public class AstrBotChatServiceImpl implements AstrBotChatService {
             body.put("config_id", configId);
         }
 
-        return client().post()
+        return astrBotWebClient.post()
                 .uri("/api/v1/chat")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
@@ -374,27 +359,5 @@ public class AstrBotChatServiceImpl implements AstrBotChatService {
             }
         }
         return StrUtil.blankToDefault(raw, "HTTP " + e.getStatusCode().value());
-    }
-
-    private WebClient client() {
-        String baseUrl = credentials.astrBotBaseUrl();
-        String apiKey = credentials.astrBotApiKey();
-        String fingerprint = baseUrl + "|" + apiKey;
-        long version = integrationClientCache.version();
-        if (cachedWebClient != null && version == cachedVersion && fingerprint.equals(cachedFingerprint)) {
-            return cachedWebClient;
-        }
-        HttpClient httpClient = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, astrBotProperties.getConnectTimeoutMs())
-                .responseTimeout(Duration.ofMillis(astrBotProperties.getReadTimeoutMs()));
-        WebClient webClient = WebClient.builder()
-                .baseUrl(baseUrl)
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
-                .defaultHeader("Authorization", "Bearer " + apiKey)
-                .build();
-        cachedWebClient = webClient;
-        cachedFingerprint = fingerprint;
-        cachedVersion = version;
-        return webClient;
     }
 }

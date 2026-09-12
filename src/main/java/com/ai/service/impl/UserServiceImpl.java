@@ -3,30 +3,24 @@ package com.ai.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
-import com.ai.constant.OpsAuditActionConstant;
-import com.ai.constant.SiteSettingConstant;
 import com.ai.constant.UserConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.platform.UserMapper;
 import com.ai.model.dto.user.UserQueryRequest;
-import com.ai.model.entity.User;
 import com.ai.model.enums.UserRoleEnum;
 import com.ai.model.vo.LoginUserVO;
 import com.ai.model.vo.UserVO;
-import com.ai.service.OpsAuditLogService;
-import com.ai.service.SiteSettingService;
-import com.ai.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
-import jakarta.annotation.Resource;
+import com.ai.model.entity.User;
+import com.ai.mapper.UserMapper;
+import com.ai.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.ai.constant.UserConstant.USER_LOGIN_STATE;
@@ -38,11 +32,7 @@ import static com.ai.constant.UserConstant.USER_LOGIN_STATE;
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements UserService{
 
-    @Resource
-    private SiteSettingService siteSettingService;
 
-    @Resource
-    private OpsAuditLogService opsAuditLogService;
 
     /**
      * 用户注册
@@ -54,11 +44,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
      */
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
-        boolean registerEnabled = siteSettingService.getBool(
-                SiteSettingConstant.MODULE_SECURITY, "register_enabled", true);
-        if (!registerEnabled) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "暂未开放注册");
-        }
         // 1. 校验
         if (StrUtil.hasBlank(userAccount, userPassword, checkPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
@@ -82,16 +67,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         // 3. 加密
         String encryptPassword = getEncryptPassword(userPassword);
         // 4. 插入数据
-        String defaultRole = siteSettingService.getString(
-                SiteSettingConstant.MODULE_SECURITY, "default_user_role", UserConstant.DEFAULT_ROLE);
-        if (!UserConstant.DEFAULT_ROLE.equals(defaultRole)) {
-            defaultRole = UserConstant.DEFAULT_ROLE;
-        }
         User user = new User();
         user.setUserAccount(userAccount);
         user.setUserPassword(encryptPassword);
         user.setUserName("无名");
-        user.setUserRole(defaultRole);
+        user.setUserRole(UserRoleEnum.USER.getValue());
         boolean saveResult = this.save(user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据库错误");
@@ -127,61 +107,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
     public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         // 1. 校验
         if (StrUtil.hasBlank(userAccount, userPassword)) {
-            auditLoginFail(userAccount, "params_empty", request);
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
         }
         if (userAccount.length() < 4) {
-            auditLoginFail(userAccount, "account_invalid", request);
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号错误");
         }
         if (userPassword.length() < 8) {
-            auditLoginFail(userAccount, "password_invalid", request);
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
         }
-        boolean genericHint = siteSettingService.getBool(
-                SiteSettingConstant.MODULE_SECURITY, "login_fail_hint_generic", true);
         // 2. 加密
         String encryptPassword = getEncryptPassword(userPassword);
-        QueryWrapper accountQuery = new QueryWrapper();
-        accountQuery.eq("userAccount", userAccount);
-        User accountUser = this.mapper.selectOneByQuery(accountQuery);
-        if (accountUser == null) {
-            auditLoginFail(userAccount, "user_not_found", request);
-            if (genericHint) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
-            }
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在");
-        }
-        if (!encryptPassword.equals(accountUser.getUserPassword())) {
-            auditLoginFail(userAccount, "password_mismatch", request);
-            if (genericHint) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
-            }
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
+        // 查询用户是否存在
+        QueryWrapper queryWrapper = new QueryWrapper();
+        queryWrapper.eq("userAccount", userAccount);
+        queryWrapper.eq("userPassword", encryptPassword);
+        User user = this.mapper.selectOneByQuery(queryWrapper);
+        // 用户不存在
+        if (user == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在或密码错误");
         }
         // 3. 记录用户的登录态
-        request.getSession().setAttribute(USER_LOGIN_STATE, accountUser);
-        opsAuditLogService.audit(
-                OpsAuditActionConstant.USER_LOGIN_SUCCESS,
-                accountUser.getId(),
-                OpsAuditActionConstant.RESOURCE_USER,
-                String.valueOf(accountUser.getId()),
-                true,
-                Map.of("userAccount", userAccount),
-                request);
+        request.getSession().setAttribute(USER_LOGIN_STATE, user);
         // 4. 获得脱敏后的用户信息
-        return this.getLoginUserVO(accountUser);
-    }
-
-    private void auditLoginFail(String userAccount, String reason, HttpServletRequest request) {
-        opsAuditLogService.audit(
-                OpsAuditActionConstant.USER_LOGIN_FAIL,
-                null,
-                OpsAuditActionConstant.RESOURCE_USER,
-                null,
-                false,
-                Map.of("userAccount", StrUtil.blankToDefault(userAccount, ""), "reason", reason),
-                request);
+        return this.getLoginUserVO(user);
     }
 
     @Override
@@ -208,17 +156,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         if (userObj == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "未登录");
         }
-        Long operatorId = userObj instanceof User user ? user.getId() : null;
         // 移除登录态
         request.getSession().removeAttribute(USER_LOGIN_STATE);
-        opsAuditLogService.audit(
-                OpsAuditActionConstant.USER_LOGOUT,
-                operatorId,
-                OpsAuditActionConstant.RESOURCE_USER,
-                operatorId == null ? null : String.valueOf(operatorId),
-                true,
-                Map.of(),
-                request);
         return true;
     }
 

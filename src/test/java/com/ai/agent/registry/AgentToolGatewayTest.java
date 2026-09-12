@@ -1,22 +1,22 @@
 package com.ai.agent.registry;
 
+import com.ai.agent.config.ChatAgentProperties;
 import com.ai.agent.model.AgentToolContext;
 import com.ai.agent.model.AgentToolLevel;
 import com.ai.agent.model.AgentToolResult;
 import com.ai.exception.BusinessException;
-import com.ai.setting.runtime.ChatRuntimeSettings;
+import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class AgentToolGatewayTest {
 
@@ -29,11 +29,11 @@ class AgentToolGatewayTest {
         registry = new AgentToolRegistry(List.of(new TestToolModule()));
         registry.init();
 
-        ChatRuntimeSettings chatRuntimeSettings = mock(ChatRuntimeSettings.class);
-        when(chatRuntimeSettings.agentL2Enabled()).thenReturn(false);
+        ChatAgentProperties properties = new ChatAgentProperties();
+        properties.setL2Enabled(false);
 
         ReflectionTestUtils.setField(gateway, "agentToolRegistry", registry);
-        ReflectionTestUtils.setField(gateway, "chatRuntimeSettings", chatRuntimeSettings);
+        ReflectionTestUtils.setField(gateway, "chatAgentProperties", properties);
     }
 
     @Test

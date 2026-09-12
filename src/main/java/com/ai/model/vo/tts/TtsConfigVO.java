@@ -13,8 +13,6 @@ public class TtsConfigVO implements Serializable {
 
     private String defaultVoiceName;
 
-    private Boolean enabled;
-
     private Boolean gptSovitsAvailable;
 
     private Boolean refPreloaded;

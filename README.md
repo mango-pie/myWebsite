@@ -1,163 +1,222 @@
-# Ai-Backend（个人站点后端）
+# AI 后端服务
 
-基于 **Spring Boot 3 / Java 17 / Maven** 的**单体可插拔**后端：平台能力常驻，业务能力通过 `app.modules.*` 运行时开关启停。  
-**鉴权为 HttpSession（Cookie）**，不是 JWT；**不是微服务拆分**（见模块解耦基线）。
+## 项目概述
 
-| 项 | 约定 |
-| --- | --- |
-| Java | **17** |
-| 构建 | **Maven**（`./mvnw` 或本机 `mvn`） |
-| 默认端口 | **8123**（`SERVER_PORT`） |
-| Context path | **`/api`** |
-| 鉴权 | **Session**：登录后 `HttpSession` 属性 `user_login`；可用 Redis Session（探测失败则回落） |
-| 模块开关 | **`app.modules.*`**（见下方） |
+AI 后端服务是一个基于 Spring Boot 的智能代码生成系统，主要功能是通过 AI 模型根据用户的需求生成代码，并支持代码的保存和部署。系统支持两种代码生成模式：HTML 模式和多文件模式，用户可以根据需求选择合适的生成方式。
 
-权威设计与运维文档（请以这些为准，勿与历史 Knowledge AI 规划稿中的 JWT/微服务表述混淆）：
+## 技术栈
 
-- [模块解耦设计清单](docs/module-decoupling/00-design-checklist.md)
-- [模块解耦 · 前端对接](docs/module-decoupling/01-frontend-integration.md)
-- [模块 → Schema 映射](src/main/resources/sql/README-modules.md)
-- [文档目录总入口](docs/README.md)
-- [服务器部署](docs/DEPLOY_SERVER.md)（可选深入）
+- **后端框架**：Spring Boot 3.5.11
+- **数据库**：MySQL
+- **ORM**：MyBatis Flex
+- **AI 框架**：LangChain4j
+- **缓存**：Redis
+- **API 文档**：Knife4j (Swagger)
+- **构建工具**：Maven
+- **Java 版本**：17
 
----
+## 项目结构
 
-## 快速开始
+```
+AI-backend/
+├── src/
+│   ├── main/
+│   │   ├── java/com/ai/
+│   │   │   ├── annotation/      # 自定义注解
+│   │   │   ├── aop/            # 切面编程
+│   │   │   ├── common/         # 通用类
+│   │   │   ├── config/         # 配置类
+│   │   │   ├── constant/       # 常量定义
+│   │   │   ├── controller/     # 控制器
+│   │   │   ├── core/           # 核心功能
+│   │   │   ├── exception/      # 异常处理
+│   │   │   ├── generator/      # 代码生成器
+│   │   │   ├── mapper/         # 数据访问层
+│   │   │   ├── model/          # 数据模型
+│   │   │   ├── saver/          # 代码保存器
+│   │   │   ├── service/        # 业务逻辑层
+│   │   │   └── AiApplication.java  # 应用入口
+│   │   └── resources/
+│   │       ├── mapper/         # MyBatis XML映射文件
+│   │       ├── prompt/         # AI 提示词模板
+│   │       └── application.yml # 应用配置文件
+│   └── test/                   # 测试代码
+├── .gitignore
+├── mvnw
+├── mvnw.cmd
+└── pom.xml                    # Maven 依赖配置
+```
 
-### 1. 环境
+## 核心功能
 
-- JDK **17+**
-- Maven 3.9+（或使用仓库自带 `mvnw` / `mvnw.cmd`）
-- MySQL 5.7+（库名默认 `aiscene`）
-- Redis 可选（默认配置里 Session `store-type` 可为 `none`；有 Redis 时用于 Session/缓存）
+### 1. 用户管理
 
-密钥与外部 AI Base URL 请用环境变量或本地 `application-local.yml` 覆盖，**不要把真实 Key 写进仓库**。
+- 用户注册、登录
+- 用户信息管理
+- 用户权限控制
 
-### 2. 配置要点
+### 2. 应用管理
 
-`src/main/resources/application.yml`（节选，与现状一致）：
+- 创建应用（设置应用名称、初始化提示词等）
+- 编辑应用信息
+- 删除应用
+- 查看应用列表（个人应用、推荐应用）
+
+### 3. AI 代码生成
+
+- HTML 模式：生成单页 HTML 代码
+- 多文件模式：生成包含多个文件的项目
+- 流式响应：实时返回生成的代码
+
+### 4. 对话历史管理
+
+- 记录用户与 AI 的对话历史
+- 支持查看对话历史
+- 支持删除对话历史
+
+### 5. 代码部署
+
+- 将生成的代码部署到服务器
+- 生成可访问的部署链接
+
+## 配置说明
+
+### 数据库配置
+
+在 `application.yml` 文件中配置数据库连接信息：
+
+```yaml
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/aiscene
+    username: root
+    password: root
+```
+
+### Redis 配置
+
+```yaml
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6381
+      password:
+      ttl: 3600
+  session:
+    store-type: redis
+    timeout: 3600
+```
+
+### AI 配置
+
+```yaml
+langchain4j:
+  open-ai:
+    streaming-chat-model:
+      base-url: https://api.deepseek.com
+      api-key: sk-d693c15ca50c4df7a256a27651ade1f6
+      model-name: deepseek-chat
+      max-tokens: 8192
+      log-requests: true
+      log-responses: true
+```
+
+### 服务器配置
 
 ```yaml
 server:
-  port: ${SERVER_PORT:8123}
+  port: 8123
   servlet:
     context-path: /api
-
-app:
-  modules:
-    ops: true
-    blog: true
-    knowledge: true
-    reading: true
-    chat: true
-    study: true
-    diary: true
-    tts: true
-    app-lab: true
+    session:
+      cookie:
+        max-age: 3600
 ```
 
-数据源 / Redis 常用环境变量：`DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`REDIS_HOST`、`REDIS_PORT`（默认 **6380**）。
+## 部署指南
 
-### 3. 数据库
+### 1. 环境准备
 
-按启用的模块执行对应 schema，**关闭模块不必删表**。清单见：
+- JDK 17 或以上
+- MySQL 5.7 或以上
+- Redis 6.0 或以上
 
-[`src/main/resources/sql/README-modules.md`](src/main/resources/sql/README-modules.md)
+### 2. 数据库初始化
 
-最小理解：platform（`user` / 站点设置等）始终需要；业务表随 `app.modules.*` 选择执行。
+创建名为 `aiscene` 的数据库，系统会自动创建所需的表结构。
 
-### 4. 编译
+### 3. 构建项目
 
 ```bash
-./mvnw clean package -DskipTests
-# Windows:
-mvnw.cmd clean package -DskipTests
+mvn clean package
 ```
 
-产物：`target/AI-0.0.1-SNAPSHOT.jar`（`pom.xml` 中 `artifactId=AI`）。
-
-### 5. 启动 / 停止
+### 4. 运行项目
 
 ```bash
 java -jar target/AI-0.0.1-SNAPSHOT.jar
-# 或指定开关，例如只开博客与运维：
-java -jar target/AI-0.0.1-SNAPSHOT.jar \
-  --app.modules.knowledge=false \
-  --app.modules.reading=false \
-  --app.modules.chat=false \
-  --app.modules.study=false \
-  --app.modules.diary=false \
-  --app.modules.tts=false \
-  --app.modules.app-lab=false
 ```
 
-停止：向进程发 SIGTERM / Ctrl+C，或结束对应 Java 进程。
+### 5. 访问 API 文档
 
-健康检查（context 已含 `/api`）：`http://localhost:8123/api/actuator/health`  
-API 文档（Knife4j / springdoc）：`http://localhost:8123/api/swagger-ui.html`  
-（若开启 Knife4j 增强页，也可试 `/api/doc.html`）
+启动项目后，可通过以下地址访问 API 文档：
 
----
-
-## 模块开关（`app.modules.*`）
-
-策略：**Feature Flag + 条件装配 + SPI**。关闭某模块后：
-
-- 对应 Controller / 多数 Bean / Mapper **不注册**
-- 相关 API 表现为 **404**（或文档约定的业务码），不应 NPE
-- 跨模块能力走 SPI；对端关闭时明确报错或 NoOp，不强依赖对方表
-- 平台集成探测对 chat/tts/knowledge 用 `ObjectProvider.getIfAvailable()`（关模块跳过、不 NPE）；维持此为终态，不另建 `IntegrationProbe` SPI
-
-| Key | 含义（摘要） |
-| --- | --- |
-| `ops` | 运维可观测（用量 / 审计 / 统计 / HTTP 日志）；关则 NoOp |
-| `blog` | 博客 |
-| `knowledge` | 知识库 / RAG / 笔记等 |
-| `reading` | 精读异步任务队列（常与 knowledge 同开） |
-| `chat` | 对话 / Agent |
-| `study` | 学习任务 |
-| `diary` | 日记 |
-| `tts` | 语音合成 |
-| `app-lab` | AI 应用/代码实验台（配置里写作 `app-lab`） |
-
-平台不可关：用户与 Session 鉴权、站点设置、上传、集成探测骨架等。
-
-运行时探测（前端菜单隐藏）：
-
-```http
-GET /api/app/modules
+```
+http://localhost:8123/api/swagger-ui.html
 ```
 
-无需登录即可调用。详情：[前端对接文档](docs/module-decoupling/01-frontend-integration.md)。
+## API 文档
 
-YAML、JVM 参数、环境变量均可覆盖开关（Spring 松散绑定，如 `APP_MODULES_BLOG=false`）。
+### 主要 API 端点
 
----
+#### 用户管理
 
-## 鉴权说明（Session）
+- `POST /api/user/register` - 用户注册
+- `POST /api/user/login` - 用户登录
+- `GET /api/user/me` - 获取当前用户信息
+- `PUT /api/user` - 更新用户信息
 
-- 登录接口写入 **HttpSession**（常量 `user_login`），浏览器带 Cookie 访问需登录接口。
-- 权限用 `@AuthCheck` + AOP，从 Session 取当前用户；**不是** Bearer JWT 微服务网关模式。
-- Redis 可用时可将 Session 外置；不可用时仍可按当前配置以本地 Session 等方式运行（见 `RedisAvailability*` 相关配置逻辑）。
+#### 应用管理
 
----
+- `POST /api/app` - 创建应用
+- `GET /api/app` - 获取应用列表
+- `GET /api/app/{id}` - 获取应用详情
+- `PUT /api/app` - 更新应用
+- `DELETE /api/app/{id}` - 删除应用
+- `POST /api/app/chat` - 与 AI 对话生成代码
+- `POST /api/app/deploy` - 部署应用
 
-## 仓库与文档导航
+#### 对话历史管理
 
-| 路径 | 用途 |
-| --- | --- |
-| [`docs/module-decoupling/`](docs/module-decoupling/00-design-checklist.md) | 模块解耦架构基线（权威） |
-| [`src/main/resources/sql/README-modules.md`](src/main/resources/sql/README-modules.md) | 模块 ↔ SQL schema |
-| [`docs/README.md`](docs/README.md) | 功能文档总目录（精读 / 设置 / 运维等） |
-| [`DEPLOY.md`](DEPLOY.md) / [`docs/DEPLOY_SERVER.md`](docs/DEPLOY_SERVER.md) | 部署 |
+- `GET /api/chat-history` - 获取对话历史
+- `DELETE /api/chat-history/{id}` - 删除对话历史
 
-`docs/00`～`06` 等为历史 Knowledge AI 独立项目规划，其中若出现 JWT / 微服务表述，**不代表本仓库当前实现**。
+## 核心模块说明
 
----
+### 1. AI 代码生成模块
 
-## 技术栈（现状摘要）
+- **AiCodeGeneratorFacade**：AI 代码生成的核心类，负责协调代码生成和保存流程
+- **CodeParser**：解析 AI 生成的代码，提取有用信息
+- **CodeFileSaver**：将生成的代码保存到文件系统
 
-- Spring Boot **3.5.x**、MyBatis Flex、MySQL
-- Redis + Spring Session（按可用性装配）
-- LangChain4j、Knife4j / springdoc
-- 单体模块化，非独立部署的微服务集群
+### 2. 应用管理模块
+
+- **AppService**：应用管理的业务逻辑
+- **AppController**：处理应用相关的 HTTP 请求
+- **AppMapper**：应用数据的访问层
+
+### 3. 用户管理模块
+
+- **UserService**：用户管理的业务逻辑
+- **UserController**：处理用户相关的 HTTP 请求
+- **UserMapper**：用户数据的访问层
+
+### 4. 对话历史模块
+
+- **ChatHistoryService**：对话历史管理的业务逻辑
+- **ChatHistoryController**：处理对话历史相关的 HTTP 请求
+- **ChatHistoryMapper**：对话历史数据的访问层
+
+

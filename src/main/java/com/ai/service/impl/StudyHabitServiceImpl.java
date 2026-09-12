@@ -1,22 +1,18 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
-import com.ai.constant.BizStatMetricConstant;
 import com.ai.constant.StudyConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.study.StudyHabitCheckLogMapper;
-import com.ai.mapper.study.StudyHabitMapper;
+import com.ai.mapper.StudyHabitCheckLogMapper;
+import com.ai.mapper.StudyHabitMapper;
 import com.ai.model.dto.study.StudyHabitAddRequest;
 import com.ai.model.dto.study.StudyHabitCheckRequest;
 import com.ai.model.dto.study.StudyHabitUpdateRequest;
 import com.ai.model.entity.StudyHabit;
 import com.ai.model.entity.StudyHabitCheckLog;
 import com.ai.model.vo.study.StudyHabitVO;
-import com.ai.service.BizStatDailyService;
 import com.ai.service.StudyHabitService;
 import com.ai.service.StudyRedisCacheService;
 import com.ai.utils.StudyDateUtils;
@@ -33,7 +29,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@ConditionalOnModule("study")
 @Service
 public class StudyHabitServiceImpl extends ServiceImpl<StudyHabitMapper, StudyHabit> implements StudyHabitService {
 
@@ -42,9 +37,6 @@ public class StudyHabitServiceImpl extends ServiceImpl<StudyHabitMapper, StudyHa
 
     @Resource
     private StudyRedisCacheService studyRedisCacheService;
-
-    @Resource
-    private BizStatDailyService bizStatDailyService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -161,7 +153,6 @@ public class StudyHabitServiceImpl extends ServiceImpl<StudyHabitMapper, StudyHa
             log.setCheckDate(checkDate);
             log.setCreatedTime(LocalDateTime.now());
             studyHabitCheckLogMapper.insert(log);
-            bizStatDailyService.increment(BizStatMetricConstant.STUDY_HABIT_CHECKIN, 1);
         }
         recalculateStreak(habit.getId(), userId);
         studyRedisCacheService.evictTodayStats(userId);

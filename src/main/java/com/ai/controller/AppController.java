@@ -1,7 +1,5 @@
 package com.ai.controller;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.annotation.AuthCheck;
@@ -38,7 +36,6 @@ import java.util.Map;
 /**
  * 应用 控制层。
  */
-@ConditionalOnModule({"app-lab", "chat"})
 @RestController
 @RequestMapping("/app")
 @Slf4j

@@ -1,10 +1,10 @@
 package com.ai.agent;
 
+import com.ai.agent.config.ChatAgentProperties;
 import com.ai.core.AiChatFacade;
 import com.ai.exception.BusinessException;
 import com.ai.model.dto.chat.ChatRequest;
 import com.ai.model.vo.chat.ChatStreamEvent;
-import com.ai.setting.runtime.ChatRuntimeSettings;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -23,19 +23,19 @@ class ChatOrchestratorTest {
     private ChatOrchestrator orchestrator;
     private AiChatFacade aiChatFacade;
     private ChatAgentFacade chatAgentFacade;
-    private ChatRuntimeSettings chatRuntimeSettings;
+    private ChatAgentProperties chatAgentProperties;
 
     @BeforeEach
     void setUp() {
         orchestrator = new ChatOrchestrator();
         aiChatFacade = mock(AiChatFacade.class);
         chatAgentFacade = mock(ChatAgentFacade.class);
-        chatRuntimeSettings = mock(ChatRuntimeSettings.class);
-        when(chatRuntimeSettings.agentEnabled()).thenReturn(true);
+        chatAgentProperties = new ChatAgentProperties();
+        chatAgentProperties.setEnabled(true);
 
         ReflectionTestUtils.setField(orchestrator, "aiChatFacade", aiChatFacade);
         ReflectionTestUtils.setField(orchestrator, "chatAgentFacade", chatAgentFacade);
-        ReflectionTestUtils.setField(orchestrator, "chatRuntimeSettings", chatRuntimeSettings);
+        ReflectionTestUtils.setField(orchestrator, "chatAgentProperties", chatAgentProperties);
     }
 
     @Test
@@ -67,7 +67,7 @@ class ChatOrchestratorTest {
 
     @Test
     void agentDisabledThrows() {
-        when(chatRuntimeSettings.agentEnabled()).thenReturn(false);
+        chatAgentProperties.setEnabled(false);
         ChatRequest request = new ChatRequest();
         request.setConversationId(1L);
         request.setMessage("加待办");

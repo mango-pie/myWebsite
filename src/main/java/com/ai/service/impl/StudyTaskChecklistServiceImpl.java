@@ -1,12 +1,10 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.study.StudyTaskChecklistMapper;
+import com.ai.mapper.StudyTaskChecklistMapper;
 import com.ai.model.dto.study.StudyChecklistAddRequest;
 import com.ai.model.dto.study.StudyChecklistUpdateRequest;
 import com.ai.model.entity.StudyTask;
@@ -25,7 +23,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@ConditionalOnModule("study")
 @Service
 public class StudyTaskChecklistServiceImpl extends ServiceImpl<StudyTaskChecklistMapper, StudyTaskChecklist>
         implements StudyTaskChecklistService {

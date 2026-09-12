@@ -1,13 +1,10 @@
 package com.ai.agent.config;
 
-import com.ai.config.ConditionalOnModule;
-
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 @Data
-@ConditionalOnModule("chat")
 @Component
 @ConfigurationProperties(prefix = "chat.agent")
 public class ChatAgentProperties {

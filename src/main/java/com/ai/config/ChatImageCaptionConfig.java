@@ -1,7 +1,5 @@
 package com.ai.config;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.util.StrUtil;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
@@ -11,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 
-@ConditionalOnModule("chat")
 @Configuration
 public class ChatImageCaptionConfig {
 

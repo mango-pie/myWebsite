@@ -1,13 +1,10 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.util.StrUtil;
+import com.ai.config.ChatImageCaptionProperties;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.service.ChatImageCaptionService;
-import com.ai.service.IntegrationCredentialsService;
-import com.ai.setting.runtime.ChatRuntimeSettings;
 import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.data.message.TextContent;
 import dev.langchain4j.data.message.UserMessage;
@@ -25,15 +22,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Slf4j
-@ConditionalOnModule("chat")
 @Service
 public class ChatImageCaptionServiceImpl implements ChatImageCaptionService {
 
     @Resource
-    private ChatRuntimeSettings chatRuntimeSettings;
-
-    @Resource
-    private IntegrationCredentialsService credentials;
+    private ChatImageCaptionProperties captionProperties;
 
     @Autowired(required = false)
     @Qualifier("imageCaptionChatModel")
@@ -41,15 +34,14 @@ public class ChatImageCaptionServiceImpl implements ChatImageCaptionService {
 
     @Override
     public String caption(byte[] imageBytes, String mimeType) {
-        if (!chatRuntimeSettings.imageCaptionEnabled()) {
+        if (!captionProperties.isEnabled()) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "图片转述功能未启用");
         }
         if (imageCaptionChatModel == null) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "图片转述模型未配置");
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "图片转述模型未配置，请设置 ZHIPU_API_KEY");
         }
-        if (StrUtil.isBlank(credentials.imageCaptionApiKey())) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR,
-                    "图片转述 API Key 未配置，请设置 chat.image-caption.api-key 或集成项 chat.image_caption.api_key");
+        if (StrUtil.isBlank(captionProperties.getApiKey())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "图片转述 API Key 未配置，请设置 ZHIPU_API_KEY");
         }
         if (imageBytes == null || imageBytes.length == 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "图片内容为空");
@@ -58,7 +50,7 @@ public class ChatImageCaptionServiceImpl implements ChatImageCaptionService {
         String effectiveMime = StrUtil.blankToDefault(mimeType, "image/jpeg");
         String base64 = Base64.getEncoder().encodeToString(imageBytes);
         UserMessage userMessage = UserMessage.from(
-                TextContent.from(chatRuntimeSettings.imageCaptionPrompt()),
+                TextContent.from(captionProperties.getPrompt()),
                 ImageContent.from(base64, effectiveMime)
         );
 
@@ -67,7 +59,7 @@ public class ChatImageCaptionServiceImpl implements ChatImageCaptionService {
                     () -> imageCaptionChatModel.chat(userMessage)
             );
             ChatResponse response = future.get(
-                    chatRuntimeSettings.imageCaptionTimeoutSeconds(),
+                    captionProperties.getTimeoutSeconds(),
                     TimeUnit.SECONDS
             );
             String text = response != null && response.aiMessage() != null

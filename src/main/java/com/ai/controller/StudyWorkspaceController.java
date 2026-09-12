@@ -1,7 +1,5 @@
 package com.ai.controller;
 
-import com.ai.config.ConditionalOnModule;
-
 import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
@@ -14,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-@ConditionalOnModule("study")
 @RestController
 @RequestMapping("/study/workspace")
 public class StudyWorkspaceController {

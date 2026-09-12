@@ -9,8 +9,6 @@ public class TtsHealthVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private Boolean enabled;
-
     private Boolean available;
 
     private String message;

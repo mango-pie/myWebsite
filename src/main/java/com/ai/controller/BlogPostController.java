@@ -1,7 +1,5 @@
 package com.ai.controller;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.bean.BeanUtil;
 import com.ai.annotation.AuthCheck;
 import com.ai.common.BaseResponse;
@@ -19,13 +17,11 @@ import com.ai.model.entity.User;
 import com.ai.model.vo.blog.BlogPostVO;
 import com.ai.service.BlogPostService;
 import com.ai.service.UserService;
-import com.ai.setting.runtime.BlogRuntimeSettings;
 import com.mybatisflex.core.paginate.Page;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-@ConditionalOnModule("blog")
 @RestController
 @RequestMapping("/blog/post")
 public class BlogPostController {
@@ -35,9 +31,6 @@ public class BlogPostController {
 
     @Autowired
     private UserService userService;
-
-    @Autowired
-    private BlogRuntimeSettings blogRuntimeSettings;
 
     @PostMapping("/add")
     public BaseResponse<Long> addBlogPost(@RequestBody BlogPostAddRequest blogPostAddRequest, HttpServletRequest request) {
@@ -74,9 +67,9 @@ public class BlogPostController {
     @PostMapping("/list/page/vo")
     public BaseResponse<Page<BlogPostVO>> queryBlogPostPage(@RequestBody BlogPostQueryRequest blogPostQueryRequest) {
         ThrowUtils.throwIf(blogPostQueryRequest == null, ErrorCode.PARAMS_ERROR);
-        int pageSize = blogRuntimeSettings.resolvePageSize(blogPostQueryRequest.getPageSize());
+        int pageNum = blogPostQueryRequest.getPageNum();
+        int pageSize = blogPostQueryRequest.getPageSize();
         ThrowUtils.throwIf(pageSize > 100, ErrorCode.PARAMS_ERROR);
-        blogPostQueryRequest.setPageSize(pageSize);
         Page<BlogPostVO> voPage = blogPostService.queryBlogPostPage(blogPostQueryRequest);
         return ResultUtils.success(voPage);
     }
@@ -85,10 +78,9 @@ public class BlogPostController {
     public BaseResponse<Page<BlogPostVO>> getBlogPostPageByCategory(
             @PathVariable Long categoryId,
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(required = false) Integer pageSize) {
+            @RequestParam(defaultValue = "10") int pageSize) {
         ThrowUtils.throwIf(categoryId == null || categoryId <= 0, ErrorCode.PARAMS_ERROR);
-        int size = blogRuntimeSettings.resolvePageSize(pageSize == null ? 0 : pageSize);
-        Page<BlogPostVO> voPage = blogPostService.getBlogPostPageByCategory(categoryId, pageNum, size);
+        Page<BlogPostVO> voPage = blogPostService.getBlogPostPageByCategory(categoryId, pageNum, pageSize);
         return ResultUtils.success(voPage);
     }
 
@@ -96,19 +88,17 @@ public class BlogPostController {
     public BaseResponse<Page<BlogPostVO>> getBlogPostPageByTag(
             @PathVariable Long tagId,
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(required = false) Integer pageSize) {
+            @RequestParam(defaultValue = "10") int pageSize) {
         ThrowUtils.throwIf(tagId == null || tagId <= 0, ErrorCode.PARAMS_ERROR);
-        int size = blogRuntimeSettings.resolvePageSize(pageSize == null ? 0 : pageSize);
-        Page<BlogPostVO> voPage = blogPostService.getBlogPostPageByTag(tagId, pageNum, size);
+        Page<BlogPostVO> voPage = blogPostService.getBlogPostPageByTag(tagId, pageNum, pageSize);
         return ResultUtils.success(voPage);
     }
 
     @GetMapping("/list/page/published")
     public BaseResponse<Page<BlogPostVO>> getPublishedBlogPostPage(
             @RequestParam(defaultValue = "1") int pageNum,
-            @RequestParam(required = false) Integer pageSize) {
-        int size = blogRuntimeSettings.resolvePageSize(pageSize == null ? 0 : pageSize);
-        Page<BlogPostVO> voPage = blogPostService.getPublishedBlogPostPage(pageNum, size);
+            @RequestParam(defaultValue = "10") int pageSize) {
+        Page<BlogPostVO> voPage = blogPostService.getPublishedBlogPostPage(pageNum, pageSize);
         return ResultUtils.success(voPage);
     }
 

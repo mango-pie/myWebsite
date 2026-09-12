@@ -1,7 +1,5 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.constant.UserConstant;
@@ -18,7 +16,7 @@ import com.ai.service.ChatHistoryService;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
-import com.ai.mapper.chat.ChatHistoryMapper;
+import com.ai.mapper.ChatHistoryMapper;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -35,7 +33,6 @@ import java.util.stream.Collectors;
  *
 
  */
-@ConditionalOnModule("chat")
 @Service
 public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatHistory> implements ChatHistoryService {
 

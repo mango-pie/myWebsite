@@ -42,7 +42,4 @@ build/
 ### Cursor / logs ###
 .cursor/
 hs_err_pid*.log
-hs_err_pid*.jfr
-*.jfr
-debug-*.log
 replay_pid*.log

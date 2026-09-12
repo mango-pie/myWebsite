@@ -1,12 +1,10 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.blog.BlogPostMapper;
+import com.ai.mapper.BlogPostMapper;
 import com.ai.model.dto.blog.BlogCategoryAddRequest;
 import com.ai.model.dto.blog.BlogCategoryQueryRequest;
 import com.ai.model.dto.blog.BlogCategoryUpdateRequest;
@@ -18,7 +16,7 @@ import com.ai.service.BlogPostService;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
-import com.ai.mapper.blog.BlogCategoryMapper;
+import com.ai.mapper.BlogCategoryMapper;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
@@ -26,7 +24,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@ConditionalOnModule("blog")
 @Service
 public class BlogCategoryServiceImpl extends ServiceImpl<BlogCategoryMapper, BlogCategory> implements BlogCategoryService {
 

@@ -1,7 +1,5 @@
 package com.ai.core;
 
-import com.ai.config.ConditionalOnModule;
-
 import com.ai.config.factory.AiCodeGeneratorServiceFactory;
 import com.ai.core.parser.CodeParserExecutor;
 import com.ai.exception.BusinessException;
@@ -25,7 +23,6 @@ import java.io.File;
 /**
  * AI 代码生成外观类，组合生成和保存功能
  */
-@ConditionalOnModule({"app-lab", "chat"})
 @Service
 public class AiCodeGeneratorFacade {
 

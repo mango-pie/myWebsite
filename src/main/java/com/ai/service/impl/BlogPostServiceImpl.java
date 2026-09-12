@@ -1,14 +1,11 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
-import com.ai.constant.BizStatMetricConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.blog.BlogCategoryMapper;
+import com.ai.mapper.BlogCategoryMapper;
 import com.ai.model.dto.blog.BlogPostAddRequest;
 import com.ai.model.dto.blog.BlogPostQueryRequest;
 import com.ai.model.dto.blog.BlogPostUpdateRequest;
@@ -20,19 +17,16 @@ import com.ai.model.entity.User;
 import com.ai.model.vo.blog.BlogPostVO;
 import com.ai.model.vo.blog.BlogImageVO;
 import com.ai.model.vo.blog.BlogTagVO;
-import com.ai.service.BizStatDailyService;
 import com.ai.service.BlogCategoryService;
 import com.ai.service.BlogPostTagService;
 import com.ai.service.BlogPostService;
 import com.ai.service.BlogTagService;
 import com.ai.service.UserService;
-import com.ai.service.blog.spi.KnowledgeNoteUnlinker;
-import com.ai.setting.runtime.BlogRuntimeSettings;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.LambdaGetter;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
-import com.ai.mapper.blog.BlogPostMapper;
+import com.ai.mapper.BlogPostMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +38,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-@ConditionalOnModule("blog")
 @Service
 public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> implements BlogPostService {
 
@@ -61,17 +54,6 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
     @Resource
     private UserService userService;
 
-    @Resource
-    private BlogRuntimeSettings blogRuntimeSettings;
-
-    @Resource
-    private BizStatDailyService bizStatDailyService;
-
-    /** knowledge 关闭时由 NoOp 兜底；删博客后回写断开精读关联。@Lazy breaks blog-knowledge SPI cycle; no allow-circular-references */
-    @Lazy
-    @Resource
-    private KnowledgeNoteUnlinker knowledgeNoteUnlinker;
-
     @Override
     @Transactional(rollbackFor = Exception.class)
     public long addBlogPost(BlogPostAddRequest blogPostAddRequest, Long userId) {
@@ -86,11 +68,7 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
         blogPost.setLikeCount(0);
         blogPost.setCreatedTime(LocalDateTime.now());
         blogPost.setUpdatedTime(LocalDateTime.now());
-        if (blogPostAddRequest.getStatus() == null) {
-            blogPost.setStatus(blogRuntimeSettings.editorDefaultStatusInt());
-        }
-        blogPost.setSummary(trimSummary(blogPost.getSummary()));
-
+        
         String extendInfo = blogPost.getExtendInfo();
         if (StrUtil.isBlank(extendInfo)) {
             blogPost.setExtendInfo("{}");
@@ -133,10 +111,7 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
         BlogPost blogPost = new BlogPost();
         BeanUtil.copyProperties(blogPostUpdateRequest, blogPost);
         blogPost.setUpdatedTime(LocalDateTime.now());
-        if (blogPostUpdateRequest.getSummary() != null) {
-            blogPost.setSummary(trimSummary(blogPost.getSummary()));
-        }
-
+        
         String extendInfo = blogPost.getExtendInfo();
         if (StrUtil.isBlank(extendInfo)) {
             blogPost.setExtendInfo("{}");
@@ -186,9 +161,6 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
         }
 
         blogPostTagService.removeByPostId(id);
-
-        // 若由精读发布：断开 note.blogPostId（knowledge 关则为 NoOp）
-        knowledgeNoteUnlinker.clearBlogLinkByPostId(id, userId);
         return true;
     }
 
@@ -207,14 +179,9 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限修改此文章");
         }
 
-        Integer previous = blogPost.getStatus();
         blogPost.setStatus(status);
         blogPost.setUpdatedTime(LocalDateTime.now());
-        boolean updated = this.updateById(blogPost);
-        if (updated && Integer.valueOf(1).equals(status) && !Integer.valueOf(1).equals(previous)) {
-            bizStatDailyService.increment(BizStatMetricConstant.BLOG_POST_PUBLISH, 1);
-        }
-        return updated;
+        return this.updateById(blogPost);
     }
 
     @Override
@@ -242,14 +209,7 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
         if (id == null) {
             return false;
         }
-        if (!blogRuntimeSettings.viewCountEnabled()) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "阅读统计已关闭");
-        }
-        boolean ok = this.mapper.incrementViewCount(id) > 0;
-        if (ok) {
-            bizStatDailyService.increment(BizStatMetricConstant.BLOG_POST_VIEW, 1);
-        }
-        return ok;
+        return this.mapper.incrementViewCount(id) > 0;
     }
 
     @Override
@@ -257,14 +217,7 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
         if (id == null) {
             return false;
         }
-        if (!blogRuntimeSettings.allowLike()) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "点赞已关闭");
-        }
-        boolean ok = this.mapper.incrementLikeCount(id) > 0;
-        if (ok) {
-            bizStatDailyService.increment(BizStatMetricConstant.BLOG_POST_LIKE, 1);
-        }
-        return ok;
+        return this.mapper.incrementLikeCount(id) > 0;
     }
 
     @Override
@@ -286,8 +239,7 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
         }
 
         int pageNum = blogPostQueryRequest.getPageNum();
-        int pageSize = blogRuntimeSettings.resolvePageSize(blogPostQueryRequest.getPageSize());
-        blogPostQueryRequest.setPageSize(pageSize);
+        int pageSize = blogPostQueryRequest.getPageSize();
         Page<BlogPost> postPage = this.page(Page.of(pageNum, pageSize), getQueryWrapper(blogPostQueryRequest));
 
         Page<BlogPostVO> voPage = new Page<>(pageNum, pageSize, postPage.getTotalRow());
@@ -297,7 +249,6 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
 
     @Override
     public Page<BlogPostVO> getBlogPostPageByCategory(Long categoryId, int pageNum, int pageSize) {
-        pageSize = blogRuntimeSettings.resolvePageSize(pageSize);
         QueryWrapper queryWrapper = new QueryWrapper()
                 .eq("category_id", categoryId)
                 .eq("status", 1)
@@ -312,7 +263,6 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
 
     @Override
     public Page<BlogPostVO> getBlogPostPageByTag(Long tagId, int pageNum, int pageSize) {
-        pageSize = blogRuntimeSettings.resolvePageSize(pageSize);
         List<Long> postIds = blogPostTagService.getPostIdsByTagId(tagId);
         if (CollUtil.isEmpty(postIds)) {
             return new Page<>(pageNum, pageSize, 0);
@@ -332,7 +282,6 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
 
     @Override
     public Page<BlogPostVO> getPublishedBlogPostPage(int pageNum, int pageSize) {
-        pageSize = blogRuntimeSettings.resolvePageSize(pageSize);
         QueryWrapper queryWrapper = new QueryWrapper()
                 .eq("status", 1)
                 .isNull("deleted_time")
@@ -476,16 +425,5 @@ public class BlogPostServiceImpl extends ServiceImpl<BlogPostMapper, BlogPost> i
             case 2 -> "下架";
             default -> "未知";
         };
-    }
-
-    private String trimSummary(String summary) {
-        if (summary == null) {
-            return null;
-        }
-        int max = Math.max(20, blogRuntimeSettings.summaryMaxLength());
-        if (summary.length() <= max) {
-            return summary;
-        }
-        return summary.substring(0, max);
     }
 }

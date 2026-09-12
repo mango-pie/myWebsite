@@ -17,7 +17,4 @@ public class StudyWorkspaceVO implements Serializable {
     private StudyTodayStatsVO todayStats;
 
     private StudyFocusSessionVO activeFocus;
-
-    /** 是否默认展示任务清单（来自全站设置 study.workspace.show_checklist） */
-    private Boolean showChecklist;
 }

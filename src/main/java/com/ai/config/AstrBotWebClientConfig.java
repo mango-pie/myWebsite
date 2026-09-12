@@ -1,7 +1,5 @@
 package com.ai.config;
 
-import com.ai.config.ConditionalOnModule;
-
 import io.netty.channel.ChannelOption;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,7 +9,6 @@ import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 
-@ConditionalOnModule("chat")
 @Configuration
 public class AstrBotWebClientConfig {
 

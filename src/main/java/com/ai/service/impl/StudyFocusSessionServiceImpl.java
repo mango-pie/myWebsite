@@ -1,24 +1,19 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
-import com.ai.constant.BizStatMetricConstant;
 import com.ai.constant.StudyConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
-import com.ai.mapper.study.StudyFocusSessionMapper;
+import com.ai.mapper.StudyFocusSessionMapper;
 import com.ai.model.dto.study.StudyFocusIdRequest;
 import com.ai.model.dto.study.StudyFocusStartRequest;
 import com.ai.model.entity.StudyFocusSession;
 import com.ai.model.entity.StudyTask;
 import com.ai.model.vo.study.StudyFocusSessionVO;
-import com.ai.service.BizStatDailyService;
 import com.ai.service.StudyFocusSessionService;
 import com.ai.service.StudyRedisCacheService;
 import com.ai.service.StudyTaskService;
-import com.ai.setting.runtime.StudyRuntimeSettings;
 import com.ai.utils.StudyDateUtils;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -32,7 +27,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@ConditionalOnModule("study")
 @Service
 public class StudyFocusSessionServiceImpl extends ServiceImpl<StudyFocusSessionMapper, StudyFocusSession>
         implements StudyFocusSessionService {
@@ -42,12 +36,6 @@ public class StudyFocusSessionServiceImpl extends ServiceImpl<StudyFocusSessionM
 
     @Resource
     private StudyRedisCacheService studyRedisCacheService;
-
-    @Resource
-    private BizStatDailyService bizStatDailyService;
-
-    @Resource
-    private StudyRuntimeSettings studyRuntimeSettings;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -61,16 +49,9 @@ public class StudyFocusSessionServiceImpl extends ServiceImpl<StudyFocusSessionM
             studyTaskService.getOwnedTask(request.getTaskId(), userId);
         }
 
+        int plannedMinutes = request.getPlannedMinutes() != null && request.getPlannedMinutes() > 0
+                ? request.getPlannedMinutes() : StudyConstant.DEFAULT_PLANNED_MINUTES;
         int focusType = request.getFocusType() != null ? request.getFocusType() : StudyConstant.FOCUS_TYPE_WORK;
-        int plannedMinutes;
-        if (request.getPlannedMinutes() != null && request.getPlannedMinutes() > 0) {
-            plannedMinutes = request.getPlannedMinutes();
-        } else if (focusType == StudyConstant.FOCUS_TYPE_SHORT_BREAK
-                || focusType == StudyConstant.FOCUS_TYPE_LONG_BREAK) {
-            plannedMinutes = studyRuntimeSettings.focusBreakMinutes();
-        } else {
-            plannedMinutes = studyRuntimeSettings.focusDefaultMinutes();
-        }
 
         StudyFocusSession session = new StudyFocusSession();
         session.setUserId(userId);
@@ -135,7 +116,6 @@ public class StudyFocusSessionServiceImpl extends ServiceImpl<StudyFocusSessionM
 
         studyRedisCacheService.evictActiveFocus(userId);
         studyRedisCacheService.evictTodayStats(userId);
-        bizStatDailyService.increment(BizStatMetricConstant.STUDY_FOCUS_COMPLETE, 1);
         return toVO(session);
     }
 

@@ -1,7 +1,5 @@
 package com.ai.service.impl;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.json.JSONUtil;
 import com.ai.constant.StudyConstant;
 import com.ai.model.vo.study.StudyFocusSessionVO;
@@ -19,7 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 @Slf4j
-@ConditionalOnModule("study")
 @Service
 public class StudyRedisCacheServiceImpl implements StudyRedisCacheService {
 

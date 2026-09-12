@@ -1,8 +1,7 @@
 package com.ai.core;
 
-import com.ai.config.ConditionalOnModule;
-
 import cn.hutool.core.util.StrUtil;
+import com.ai.config.ChatSegmentationProperties;
 import com.ai.model.dto.chat.ChatMessageSegment;
 import com.ai.model.entity.ChatConversation;
 import com.ai.model.entity.User;
@@ -16,7 +15,6 @@ import com.ai.service.ChatConversationService;
 import com.ai.service.ChatMessageService;
 import com.ai.service.ChatSegmentationService;
 import com.ai.service.UserService;
-import com.ai.setting.runtime.ChatRuntimeSettings;
 import com.ai.utils.ChatMessageUtils;
 import com.ai.utils.ChatSegmentationUtils;
 import jakarta.annotation.Resource;
@@ -30,7 +28,6 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 
-@ConditionalOnModule("chat")
 @Service
 @Slf4j
 public class AiChatFacade {
@@ -51,7 +48,7 @@ public class AiChatFacade {
     private ChatSegmentationService chatSegmentationService;
 
     @Resource
-    private ChatRuntimeSettings chatRuntimeSettings;
+    private ChatSegmentationProperties chatSegmentationProperties;
 
     @Resource
     private ChatAttachmentService chatAttachmentService;
@@ -147,10 +144,10 @@ public class AiChatFacade {
         if (cleaned == null || cleaned.isBlank()) {
             return Flux.just(ChatStreamEvent.done(sseType));
         }
-        if (!chatRuntimeSettings.segmentationEnabled()
-                || cleaned.length() < chatRuntimeSettings.segmentationMinLength()) {
+        if (!chatSegmentationProperties.isEnabled()
+                || cleaned.length() < chatSegmentationProperties.getMinLength()) {
             log.debug("跳过 segment_plan: enabled={}, cleanedLength={}",
-                    chatRuntimeSettings.segmentationEnabled(), cleaned.length());
+                    chatSegmentationProperties.isEnabled(), cleaned.length());
             return Flux.just(ChatStreamEvent.done(sseType));
         }
 
@@ -164,9 +161,9 @@ public class AiChatFacade {
                     log.info("下发 segment_plan: {} 段，cleanedLength={}", segments.size(), cleaned.length());
                     List<Long> delays = ChatSegmentationUtils.buildDelaySchedule(
                             segments,
-                            chatRuntimeSettings.segmentationDelayBase(),
-                            chatRuntimeSettings.segmentationDelayPerChar(),
-                            chatRuntimeSettings.segmentationDelayMax()
+                            chatSegmentationProperties.getDelayBase(),
+                            chatSegmentationProperties.getDelayPerChar(),
+                            chatSegmentationProperties.getDelayMax()
                     );
                     return Flux.just(ChatStreamEvent.segmentPlan(segments, delays, sseType))
                             .concatWith(Flux.just(ChatStreamEvent.done(sseType)));
