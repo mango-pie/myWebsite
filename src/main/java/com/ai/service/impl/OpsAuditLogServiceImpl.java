@@ -9,6 +9,7 @@ import com.ai.model.dto.ops.OpsAuditRecord;
 import com.ai.model.entity.OpsAuditLog;
 import com.ai.model.vo.ops.OpsAuditLogVO;
 import com.ai.service.OpsAuditLogService;
+import com.ai.service.ops.OpsLogStreamService;
 import com.ai.setting.runtime.OpsRuntimeSettings;
 import com.ai.utils.BatchDeletes;
 import com.ai.utils.RequestClientUtils;
@@ -17,6 +18,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -49,18 +51,23 @@ public class OpsAuditLogServiceImpl implements OpsAuditLogService {
     @Resource(name = "opsLogExecutor")
     private Executor opsLogExecutor;
 
+    @Resource
+    private ObjectProvider<OpsLogStreamService> logStreamProvider;
+
     @Override
     public void record(OpsAuditRecord record) {
         if (record == null || !opsRuntimeSettings.opsAuditEnabled()) {
             return;
         }
+        String detailJson = toSafeDetailJson(record.getDetail());
+        broadcastToStream(record, detailJson);
         OpsAuditLog row = OpsAuditLog.builder()
                 .operatorId(record.getOperatorId())
                 .action(StrUtil.blankToDefault(record.getAction(), "unknown"))
                 .resourceType(truncate(record.getResourceType(), 64))
                 .resourceId(truncate(record.getResourceId(), 64))
                 .ip(truncate(record.getIp(), 64))
-                .detailJson(toSafeDetailJson(record.getDetail()))
+                .detailJson(detailJson)
                 .success(record.isSuccess() ? 1 : 0)
                 .createTime(LocalDateTime.now())
                 .build();
@@ -71,6 +78,29 @@ public class OpsAuditLogServiceImpl implements OpsAuditLogService {
                 log.warn("Write ops_audit_log failed: {}", e.getMessage());
             }
         }, opsLogExecutor);
+    }
+
+    /** 审计事件双写进实时日志流，detail 已脱敏 */
+    private void broadcastToStream(OpsAuditRecord record, String detailJson) {
+        OpsLogStreamService stream = logStreamProvider.getIfAvailable();
+        if (stream == null) {
+            return;
+        }
+        try {
+            String summary = StrUtil.format("{} {}#{} operator={} ip={}{}",
+                    StrUtil.blankToDefault(record.getAction(), "unknown"),
+                    StrUtil.blankToDefault(record.getResourceType(), "-"),
+                    StrUtil.blankToDefault(record.getResourceId(), "-"),
+                    record.getOperatorId() == null ? "-" : record.getOperatorId(),
+                    StrUtil.blankToDefault(record.getIp(), "-"),
+                    StrUtil.isBlank(detailJson) ? "" : " detail=" + StrUtil.maxLength(detailJson, 300));
+            stream.accept(OpsLogStreamService.LogStreamMessage.audit(
+                    java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+                            .format(LocalDateTime.now()),
+                    summary, record.isSuccess()));
+        } catch (Exception ignored) {
+            // 实时流广播失败不影响审计落库
+        }
     }
 
     @Override

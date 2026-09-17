@@ -16,6 +16,7 @@ import com.ai.model.dto.knowledge.KnowledgeNotePublishRequest;
 import com.ai.model.dto.knowledge.KnowledgeNoteQueryRequest;
 import com.ai.model.dto.knowledge.KnowledgeNoteUpdateRequest;
 import com.ai.model.dto.knowledge.KnowledgeProcessRequest;
+import com.ai.model.dto.knowledge.KnowledgeReadingJobQueryRequest;
 import com.ai.model.dto.knowledge.KnowledgeSearchPreviewRequest;
 import com.ai.model.dto.knowledge.SearchOptions;
 import com.ai.model.entity.User;
@@ -109,6 +110,14 @@ public class KnowledgeAdminController {
             return ResultUtils.success(knowledgeReadingJobService.submit(request, loginUser.getId()));
         }
         return ResultUtils.success(knowledgeReadingJobService.runSync(request, loginUser.getId()));
+    }
+
+    @GetMapping("/reading-jobs")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Page<KnowledgeReadingJobVO>> pageReadingJobs(KnowledgeReadingJobQueryRequest request,
+                                                                     HttpServletRequest httpRequest) {
+        User loginUser = userService.getLoginUser(httpRequest);
+        return ResultUtils.success(knowledgeReadingJobService.page(request, loginUser.getId()));
     }
 
     @GetMapping("/reading-jobs/{jobId}")

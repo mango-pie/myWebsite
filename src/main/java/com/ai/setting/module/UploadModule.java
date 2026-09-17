@@ -13,6 +13,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 「上传」站点设置模块：业务上传大小上限（受 Spring multipart 50MB 约束）、
+ * 允许的图片扩展名白名单、知识库下载预签名 URL 有效期。
+ * 默认值取自本地 yml（upload.*），运营端修改后覆盖 DB 值。
+ */
 @Component
 public class UploadModule implements SettingModule {
 

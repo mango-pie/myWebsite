@@ -26,6 +26,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 聊天消息服务：ask 与 agent 两条链路共用的消息落库与查询。
+ * 所有写读都先经 getOwnedConversation 做会话归属校验；
+ * 用户消息落库时顺带累计业务统计（chat_message_user）。
+ * chat 模块关闭时不注册。
+ */
 @ConditionalOnModule("chat")
 @Service
 public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatMessage>
@@ -101,6 +107,10 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
         return voPage;
     }
 
+    /**
+     * 取最近 limit 条消息（limit 收敛到 1～100）：按时间倒序取小页后反转为正序返回，
+     * 供 Agent/Ask 组装上下文使用。
+     */
     @Override
     public List<ChatMessageVO> listLatest(Long conversationId, Long userId, int limit) {
         if (limit <= 0 || limit > 100) {

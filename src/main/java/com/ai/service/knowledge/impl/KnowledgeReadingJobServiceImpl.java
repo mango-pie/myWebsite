@@ -8,12 +8,14 @@ import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.mapper.knowledge.KnowledgeReadingJobMapper;
 import com.ai.model.dto.knowledge.KnowledgeIngestBatchUrlRequest;
+import com.ai.model.dto.knowledge.KnowledgeReadingJobQueryRequest;
 import com.ai.model.entity.knowledge.KnowledgeReadingJob;
 import com.ai.model.vo.knowledge.KnowledgeIngestBatchUrlVO;
 import com.ai.model.vo.knowledge.KnowledgeReadingJobVO;
 import com.ai.service.knowledge.KnowledgeMergeDistillService;
 import com.ai.service.knowledge.KnowledgeReadingJobService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +64,32 @@ public class KnowledgeReadingJobServiceImpl implements KnowledgeReadingJobServic
     public KnowledgeReadingJobVO getJob(Long jobId, Long userId) {
         KnowledgeReadingJob job = requireJob(jobId, userId);
         return toVo(job);
+    }
+
+    @Override
+    public Page<KnowledgeReadingJobVO> page(KnowledgeReadingJobQueryRequest request, Long userId) {
+        int pageNum = request == null ? 1 : Math.max(1, request.getPageNum());
+        int pageSize = request == null ? 20 : Math.min(100, Math.max(1, request.getPageSize()));
+        String status = request == null ? null : StrUtil.trim(request.getStatus());
+        boolean activeOnly = request != null && Boolean.TRUE.equals(request.getActiveOnly());
+
+        QueryWrapper wrapper = QueryWrapper.create()
+                .eq("user_id", userId)
+                .eq("is_delete", 0)
+                .orderBy("create_time", false);
+
+        if (activeOnly) {
+            wrapper.in("status", List.of(
+                    KnowledgeReadingJobConstant.STATUS_PENDING,
+                    KnowledgeReadingJobConstant.STATUS_RUNNING));
+        } else if (StrUtil.isNotBlank(status)) {
+            wrapper.eq("status", status.toUpperCase());
+        }
+
+        Page<KnowledgeReadingJob> page = knowledgeReadingJobMapper.paginate(Page.of(pageNum, pageSize), wrapper);
+        Page<KnowledgeReadingJobVO> voPage = new Page<>(pageNum, pageSize, page.getTotalRow());
+        voPage.setRecords(page.getRecords().stream().map(this::toVo).toList());
+        return voPage;
     }
 
     @Override

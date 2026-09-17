@@ -4,6 +4,12 @@ import com.ai.agent.model.AgentToolContext;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 
+/**
+ * Agent 工具上下文的 ThreadLocal 桥接。
+ *
+ * <p>由 {@code AgentToolGateway#execute} 在执行工具前写入、finally 中清理；
+ * 供无法通过方法参数拿到 {@link AgentToolContext} 的深层调用（如 service 内部）获取当前用户。
+ */
 public final class AgentToolContextHolder {
 
     private static final ThreadLocal<AgentToolContext> CONTEXT = new ThreadLocal<>();

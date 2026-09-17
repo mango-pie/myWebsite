@@ -18,6 +18,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 「语音 TTS」站点设置模块：开关、默认合成/参考语言、Seed 音色与 GPT-SoVITS 超时等。
+ * 默认值来自本地 yml（gpt-sovits.*）；设置变更后通过 onChanged 失效代理客户端强制重建。
+ * tts 模块关闭时整个设置模块不注册。
+ */
 @ConditionalOnModule("tts")
 @Component
 public class TtsModule implements SettingModule {

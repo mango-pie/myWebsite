@@ -22,6 +22,8 @@ public class AppModuleProperties {
     private boolean worklog = true;
     private boolean tts = true;
     private boolean appLab = true;
+    private boolean library = true;
+    private boolean pet = true;
 
     public boolean isEnabled(String moduleName) {
         if (moduleName == null || moduleName.isBlank()) {
@@ -38,6 +40,8 @@ public class AppModuleProperties {
             case "worklog" -> worklog;
             case "tts" -> tts;
             case "app", "app-lab", "applab" -> appLab;
+            case "library" -> library;
+            case "pet" -> pet;
             default -> false;
         };
     }

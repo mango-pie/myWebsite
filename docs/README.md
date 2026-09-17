@@ -14,6 +14,8 @@
 | 全站设置中心 | [site-settings/](./site-settings/README.md) |
 | 运维可观测 | [ops-observability/](./ops-observability/README.md) |
 | 模块解耦 | [module-decoupling/](./module-decoupling/README.md) |
+| 模块设计文档 | [design/](#模块设计文档design自仓库根目录迁入) |
+| 前端对接指南 | [frontend/](#前端对接指南frontend自仓库根目录迁入) |
 
 ## 文档列表（Knowledge AI 原项目规划）
 
@@ -69,6 +71,40 @@
 | [Phase A～D](./ops-observability/02-phase-a-ai-usage.md) | AI 用量 → 操作审计 → 业务统计 → HTTP 日志 |
 | [FRONTEND_SYNC_A～D](./ops-observability/FRONTEND_SYNC_A.md) | 运维中心前端对接 |
 
+## 模块设计文档（design/，自仓库根目录迁入）
+
+各业务域的架构 / 数据库设计稿，写实现前先读对应篇：
+
+| 文档 | 说明 |
+| --- | --- |
+| [blog_database_design.md](./design/blog_database_design.md) | 博客模块数据库设计 |
+| [blog_technical_implementation.md](./design/blog_technical_implementation.md) | 博客模块技术实现与 API 规范 |
+| [chat-agent-ask-mode-design.md](./design/chat-agent-ask-mode-design.md) | 聊天 Ask / Agent 双模式架构设计 |
+| [study_module_design.md](./design/study_module_design.md) | 学习模块（任务/清单/专注/习惯）设计 |
+| [music-api-design.md](./design/music-api-design.md) | 音乐 API 设计（规划稿） |
+
+## 前端对接指南（frontend/，自仓库根目录迁入）
+
+面向前端的接口对接说明（SSE 协议、会话模型、TTS 等）：
+
+| 文档 | 说明 |
+| --- | --- |
+| [chat-agent-frontend-guide.md](./frontend/chat-agent-frontend-guide.md) | Ask / Agent 双模式前端接入 |
+| [chat-astrbot-frontend-guide.md](./frontend/chat-astrbot-frontend-guide.md) | AstrBot 角色聊天 SSE 前端迁移 |
+| [chat-conversation-frontend-guide.md](./frontend/chat-conversation-frontend-guide.md) | 会话模型 v2 前端对接 |
+| [chat-segmentation-frontend.md](./frontend/chat-segmentation-frontend.md) | 智能分段（segment_plan）前端处理 |
+| [frontend-tts-api.md](./frontend/frontend-tts-api.md) | TTS 语音合成前端 API |
+
+## 专项与交接文档（本目录根）
+
+| 文档 | 说明 |
+| --- | --- |
+| [DEPLOY_SERVER.md](./DEPLOY_SERVER.md) | 服务器部署操作手册 |
+| [DEPLOY_RECORD.md](./DEPLOY_RECORD.md) | 部署实录（2026-06-20） |
+| [db-index-and-table-audit.md](./db-index-and-table-audit.md) | 数据库索引与表盘点（2026-09-12，V20 已落地） |
+| [p0-tx-and-scheduler-refactor.md](./p0-tx-and-scheduler-refactor.md) | P0 事务边界与调度线程分离交接 |
+| [p1-frontend-waiting-endpoints.md](./p1-frontend-waiting-endpoints.md) | 前端已在等待的三组缺失端点（v0.10.0 巡检） |
+
 ## 推荐阅读顺序
 
 1. 了解原 Knowledge AI 背景：读 `00`～`04`（可选，历史规划）。
@@ -76,7 +112,8 @@
 3. 开发精读工作台：进入 `ai-reading-workbench/`，按 `00` → `01` → `02`/`03` 阅读。
 4. 开发全站设置：进入 `site-settings/`，按 `00` → `01` → `02` 阅读，再按阶段推进。
 5. 开发日志与统计看板：进入 `ops-observability/`，按 A→B→C→D 推进。
-6. 准备简历面试时：读 `06-resume-and-interview.md`。
+6. 开发某个业务域（博客/学习/聊天 Agent 等）：先读 `design/` 对应设计稿，前端同学再配 `frontend/` 对接指南。
+7. 准备简历面试时：读 `06-resume-and-interview.md`。
 
 ## 阶段重点（原 Knowledge AI）
 

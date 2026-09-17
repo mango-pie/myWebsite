@@ -31,6 +31,12 @@ import java.util.Map;
 
 import static com.ai.agent.registry.AgentToolRegistryBuilder.*;
 
+/**
+ * 博客域 Agent 工具：分类/标签只读查询（L0），创建与更新博客草稿（L1）。
+ * 所有写操作固定落为草稿状态（status=0），不代用户发布；
+ * 成功后附带 navigate UI 动作，引导前端跳到编辑页。
+ * 仅在 chat 与 blog 模块同时开启时注册。
+ */
 @ConditionalOnModule({"chat", "blog"})
 @Component
 public class BlogAgentToolModule extends AgentToolModule {

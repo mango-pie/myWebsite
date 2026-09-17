@@ -20,6 +20,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 学习任务接口：任务的增删改查、完成切换、排序与跨清单移动，
+ * 支持多种视图分页查询（今日/清单/日历等），另含一键同步博客草稿为学习任务。
+ * 当前所有接口仅管理员可用；study 模块关闭时本控制器不注册。
+ */
 @ConditionalOnModule("study")
 @RestController
 @RequestMapping("/study/task")

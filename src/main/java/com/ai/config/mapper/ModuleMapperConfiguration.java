@@ -70,4 +70,22 @@ public class ModuleMapperConfiguration {
     @MapperScan("com.ai.mapper.app")
     static class AppLabMapperConfig {
     }
+
+    @Configuration
+    @ConditionalOnModule("worklog")
+    @MapperScan("com.ai.mapper.worklog")
+    static class WorklogMapperConfig {
+    }
+
+    @Configuration
+    @ConditionalOnModule("pet")
+    @MapperScan("com.ai.mapper.pet")
+    static class PetMapperConfig {
+    }
+
+    @Configuration
+    @ConditionalOnModule("library")
+    @MapperScan("com.ai.mapper.library")
+    static class LibraryMapperConfig {
+    }
 }

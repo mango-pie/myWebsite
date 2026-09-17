@@ -11,6 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Agent 工具注册中心：启动时聚合容器里所有 {@link AgentToolModule}，
+ * 逐个收集工具定义并按名称去重（重名直接启动失败，尽早暴露冲突），
+ * 之后提供「按名查找」和「全量工具签名」两类查询，分别服务网关执行与模型调用。
+ */
 @Component
 public class AgentToolRegistry {
 

@@ -17,13 +17,16 @@ import com.ai.service.AiUsageLogService;
 import com.ai.service.BizStatDailyService;
 import com.ai.service.HttpAccessLogService;
 import com.ai.service.OpsAuditLogService;
+import com.ai.service.ops.OpsLogStreamService;
 import com.mybatisflex.core.paginate.Page;
 import jakarta.annotation.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -48,6 +51,18 @@ public class AdminOpsController {
 
     @Resource
     private HttpAccessLogService httpAccessLogService;
+
+    @Resource
+    private OpsLogStreamService opsLogStreamService;
+
+    /** 实时日志流（SSE）：回放最近缓冲后持续推送系统日志与审计事件 */
+    @GetMapping(value = "/logs/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public SseEmitter logStream(@RequestParam(defaultValue = "false") boolean debug) {
+        return opsLogStreamService.subscribe(debug
+                ? OpsLogStreamService.MIN_LEVEL_DEBUG
+                : OpsLogStreamService.MIN_LEVEL_INFO);
+    }
 
     @GetMapping("/usage/summary")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)

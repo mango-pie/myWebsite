@@ -7,6 +7,18 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 聊天 SSE 流事件的统一信封：ask 与 agent 两条链路共用。
+ *
+ * <p>event 取值及含义：
+ * <ul>
+ *   <li>chunk —— 一段回复文本（agent 模式为最终文本一次性下发）</li>
+ *   <li>segment_plan —— 分段计划：正文按 segments 拆分、按 delays 毫秒间隔模拟打字</li>
+ *   <li>tool_call / tool_result —— agent 模式工具调用前后的过程事件（含步骤号）</li>
+ *   <li>error / done —— 出错与正常收尾，前端收到 done 后关闭流</li>
+ * </ul>
+ * type 区分来源（agent / 普通），供前端区分渲染样式。
+ */
 @Data
 public class ChatStreamEvent implements Serializable {
 

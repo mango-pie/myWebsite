@@ -18,6 +18,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 「知识库 / RAG」站点设置模块：AI 模型参数（聊天/Embedding 模型名、维度、温度等）与
+ * 检索切块参数（TopK/chunk）。其中向量维度与切块参数标记为 danger——
+ * 修改只影响新文档，存量文档需手动重建索引（onChanged 会打告警提醒）。
+ */
 @Slf4j
 @ConditionalOnModule("knowledge")
 @Component

@@ -250,6 +250,14 @@ app:
     worklog: true
     tts: true
     app-lab: true
+    library: true
+    pet: true
+  library:
+    bucket: ${LIBRARY_MINIO_BUCKET:library-files}
+    quota-bytes: ${LIBRARY_QUOTA_BYTES:5368709120}          # 5 GiB
+    max-file-size-bytes: ${LIBRARY_MAX_FILE_SIZE_BYTES:2147483648}  # 2 GiB
+    presign-expire-seconds: ${LIBRARY_PRESIGN_EXPIRE_SECONDS:3600}
+    recycle-retention-days: ${LIBRARY_RECYCLE_RETENTION_DAYS:30}
   deploy:
     host: ${APP_DEPLOY_HOST:http://localhost}
     code-output-dir: ${APP_CODE_OUTPUT_DIR:}

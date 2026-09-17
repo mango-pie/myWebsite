@@ -28,6 +28,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 日记模块接口：按日期保存/查询日记、分页与按月浏览、上下篇导航。
+ * 所有数据均按登录用户隔离（service 层校验 userId 归属）。
+ * diary 模块关闭时本控制器不注册。
+ */
 @ConditionalOnModule("diary")
 @RestController
 @RequestMapping("/diary")

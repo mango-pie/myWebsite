@@ -148,6 +148,8 @@ YAML、JVM 参数、环境变量均可覆盖开关（Spring 松散绑定，如 `
 | --- | --- |
 | [`docs/module-decoupling/`](docs/module-decoupling/00-design-checklist.md) | 模块解耦架构基线（权威） |
 | [`src/main/resources/sql/README-modules.md`](src/main/resources/sql/README-modules.md) | 模块 ↔ SQL schema |
+| [`docs/design/`](docs/design/blog_database_design.md) | 各业务域设计稿（博客 / 学习 / Chat Agent / 音乐） |
+| [`docs/frontend/`](docs/frontend/chat-agent-frontend-guide.md) | 前端对接指南（SSE / 会话模型 / TTS） |
 | [`docs/README.md`](docs/README.md) | 功能文档总目录（精读 / 设置 / 运维等） |
 | [`DEPLOY.md`](DEPLOY.md) / [`docs/DEPLOY_SERVER.md`](docs/DEPLOY_SERVER.md) | 部署 |
 

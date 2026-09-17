@@ -23,6 +23,11 @@ import java.util.Map;
 
 import static com.ai.agent.registry.AgentToolRegistryBuilder.*;
 
+/**
+ * 日记域 Agent 工具：按日期查询（L0）与保存/更新指定日期日记（L1，按日期幂等覆盖）。
+ * 写操作成功后附带 refresh UI 动作，通知前端刷新日记页。
+ * 仅在 chat 与 diary 模块同时开启时注册。
+ */
 @ConditionalOnModule({"chat", "diary"})
 @Component
 public class DiaryAgentToolModule extends AgentToolModule {

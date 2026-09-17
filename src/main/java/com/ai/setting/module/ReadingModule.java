@@ -14,6 +14,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * 「精读工作台」站点设置模块：AI 蒸馏参数（温度/max tokens/系统 Prompt，
+ * Prompt 决定蒸馏产出的复习文章结构）、发布默认行为（是否默认草稿、是否提示打开编辑器、
+ * 重新蒸馏二次确认）与采集侧选项（搜索提供方、同步/异步采集）。
+ */
 @ConditionalOnModule("reading")
 @Component
 public class ReadingModule implements SettingModule {

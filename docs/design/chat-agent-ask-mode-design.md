@@ -1,7 +1,7 @@
 # 聊天 Ask / Agent 双模式 — 架构设计文档
 
 > **状态**：已实现（后端 P1+P2；L2 确认与审计表为二期）  
-> **前端指南**：[chat-agent-frontend-guide.md](./chat-agent-frontend-guide.md)  
+> **前端指南**：[chat-agent-frontend-guide.md](../frontend/chat-agent-frontend-guide.md)  
 > **产品定位**：在现有 AstrBot 角色聊天之上，增加与 Cursor / ChatGPT 类似的 **Ask（只读对话）** 与 **Agent（可执行本站业务）** 模式切换。
 
 ---
@@ -435,7 +435,7 @@ Tool 成功后可在 `tool_result` 中携带 `uiAction`，驱动模块刷新而�
 
 ### 7.3 向后兼容
 
-- 无 `event` 字段时仍按 `chunk` 处理（与 [chat-astrbot-frontend-guide.md](./chat-astrbot-frontend-guide.md) 一致）。
+- 无 `event` 字段时仍按 `chunk` 处理（与 [chat-astrbot-frontend-guide.md](../frontend/chat-astrbot-frontend-guide.md) 一致）。
 - `type` 字段：Ask 模式为 `configId`；Agent 模式固定 `"agent"` 或 `"agent:{configId}"`。
 
 ### 7.4 前端消费顺序（Agent 一轮）

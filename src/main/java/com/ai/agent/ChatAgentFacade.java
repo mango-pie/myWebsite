@@ -51,6 +51,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Agent 模式聊天门面：以「模型 ↔ 工具」循环驱动多步任务。
+ *
+ * <p>每轮将系统提示词、最近会话历史和全部工具规格发给模型；模型返回工具调用时，
+ * 交给 {@link AgentToolGateway} 执行，并把 tool_call / tool_result 以 SSE 事件推给前端，
+ * 将工具结果回填到消息列表继续下一轮，直到模型产出最终文本或达到 agentMaxSteps 步数上限。
+ * 用户消息、最终回复与错误都会落库，每次模型调用记录 AI 用量。
+ */
 @ConditionalOnModule("chat")
 @Service
 @Slf4j
@@ -92,6 +100,10 @@ public class ChatAgentFacade {
     @Resource
     private com.ai.setting.IntegrationOpenAiModelFactory integrationOpenAiModelFactory;
 
+    /**
+     * Agent 模式入口：校验登录与纯文本输入，解析/创建会话并落库用户消息，
+     * 然后在 boundedElastic 线程上启动 Agent 循环，以 SSE 流返回过程事件与最终回复。
+     */
     public Flux<ChatStreamEvent> chat(Long conversationId, String configId, String message,
                                       List<ChatMessageSegment> segments, HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
@@ -136,6 +148,10 @@ public class ChatAgentFacade {
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
+    /**
+     * 解析 Agent 使用的模型：优先取运营在集成设置里配置的模型，
+     * 未配置或构建失败时回退到本地 langchain4j 配置的 agentChatModel Bean。
+     */
     private ChatModel resolveAgentChatModel() {
         try {
             return integrationOpenAiModelFactory.agentChatModel();
@@ -144,6 +160,14 @@ public class ChatAgentFacade {
         }
     }
 
+    /**
+     * Agent 核心循环（阻塞执行，运行在 boundedElastic 调度器上）。
+     *
+     * <p>循环体：调用模型 → 若带工具执行请求则逐个经网关执行、推送 SSE 事件、
+     * 回填 {@code ToolExecutionResultMessage} 后继续下一轮；否则视为最终文本跳出。
+     * 超过最大步数或模型返回空时向流中写 error 事件并持久化错误消息。
+     * 任何异常都不让流中断，统一转为 error + done 事件正常收尾。
+     */
     private void runAgentLoop(FluxSink<ChatStreamEvent> sink, AgentToolContext toolContext,
                               String userMessage, Long conversationId, Long userId, ChatModel chatModel) {
         try {
@@ -223,6 +247,10 @@ public class ChatAgentFacade {
         }
     }
 
+    /**
+     * 组装首轮消息：系统提示词 + 最近 agentHistoryLimit 条历史（仅保留 user/ai 文本）。
+     * 历史末条不是用户消息（如上次以错误收尾）时，补上本轮用户输入保证对话连贯。
+     */
     private List<ChatMessage> buildInitialMessages(Long conversationId, Long userId, String userMessage) {
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(SystemMessage.from(chatAgentProperties.getSystemPrompt()));
@@ -243,6 +271,10 @@ public class ChatAgentFacade {
         return messages;
     }
 
+    /**
+     * 把模型的工具参数 JSON 解析成 Map 仅用于 SSE 展示；模型可能输出非法 JSON，
+     * 此时兜底为 {@code {"raw": 原文}}，真正的执行解析在工具模块内完成。
+     */
     private Map<String, Object> parseToolArgs(String arguments) {
         if (StrUtil.isBlank(arguments)) {
             return Map.of();
@@ -269,6 +301,7 @@ public class ChatAgentFacade {
         chatConversationService.touchLastMessageAt(conversationId);
     }
 
+    /** 记录一次模型调用的 token 用量与耗时（scene=agent），成功失败各记一条。 */
     private void recordAgentUsage(Long userId, Long conversationId, boolean success, long startNs,
                                   ChatResponse response, String errorMessage) {
         AiUsageTokenExtractor.Tokens tokens = AiUsageTokenExtractor.from(response);

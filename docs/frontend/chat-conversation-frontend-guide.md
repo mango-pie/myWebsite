@@ -263,7 +263,7 @@ export async function* streamChat(
 
 ## 9. 后端实现索引
 
-- SQL：[src/main/resources/sql/chat_conversation_schema.sql](src/main/resources/sql/chat_conversation_schema.sql)
-- 会话 API：[ChatConversationController](src/main/java/com/ai/controller/ChatConversationController.java)
-- 聊天入口：[AiChatFacade](src/main/java/com/ai/core/AiChatFacade.java)
+- SQL：[src/main/resources/sql/chat_conversation_schema.sql](../../src/main/resources/sql/chat_conversation_schema.sql)
+- 会话 API：[ChatConversationController](../../src/main/java/com/ai/controller/ChatConversationController.java)
+- 聊天入口：[AiChatFacade](../../src/main/java/com/ai/core/AiChatFacade.java)
 - AstrBot session：`chat_user_{userId}_cfg_{configId}_conv_{conversationId}`

@@ -25,6 +25,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 博客文章接口：草稿/发布文章的增删改查，按分类、标签、已发布维度的分页浏览，
+ * 以及置顶、阅读量、点赞等轻量操作。
+ * 写接口按登录用户校验归属；分页大小经 BlogRuntimeSettings 用站点设置兜底（上限 100）。
+ * blog 模块关闭时本控制器不注册。
+ */
 @ConditionalOnModule("blog")
 @RestController
 @RequestMapping("/blog/post")

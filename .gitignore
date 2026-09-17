@@ -49,3 +49,6 @@ replay_pid*.log
 
 # Mimosa 安全扫描/钩子本地状态
 .mimosa/
+
+# 本地 QA 运行日志
+qa-run.log

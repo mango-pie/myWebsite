@@ -1,13 +1,17 @@
 package com.ai.service.knowledge;
 
 import com.ai.model.dto.knowledge.KnowledgeIngestBatchUrlRequest;
+import com.ai.model.dto.knowledge.KnowledgeReadingJobQueryRequest;
 import com.ai.model.entity.knowledge.KnowledgeReadingJob;
 import com.ai.model.vo.knowledge.KnowledgeIngestBatchUrlVO;
 import com.ai.model.vo.knowledge.KnowledgeReadingJobVO;
+import com.mybatisflex.core.paginate.Page;
 
 public interface KnowledgeReadingJobService {
 
     KnowledgeReadingJobVO submit(KnowledgeIngestBatchUrlRequest request, Long userId);
+
+    Page<KnowledgeReadingJobVO> page(KnowledgeReadingJobQueryRequest request, Long userId);
 
     KnowledgeReadingJobVO getJob(Long jobId, Long userId);
 

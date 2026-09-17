@@ -30,6 +30,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 语音合成（TTS）接口：代理 GPT-SoVITS 的健康检查/参考音频预热/合成（返回 wav 字节流），
+ * 以及音色档案的增删改查与默认音色切换。
+ * 全部接口仅管理员可用，且操作前统一经 requireTtsEnabled 检查站点设置开关；
+ * tts 模块关闭时本控制器不注册。
+ */
 @ConditionalOnModule("tts")
 @RestController
 @RequestMapping("/tts")

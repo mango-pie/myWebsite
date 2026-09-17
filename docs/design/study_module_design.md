@@ -17,7 +17,7 @@
 - Redis 缓存与实时状态设计
 - 业务规则与错误码约定
 
-本文档供 Spring Boot 后端实现与前端 OpenAPI 代码生成对齐使用，风格与现有博客模块（`doc/blog_database_design.md`）保持一致。
+本文档供 Spring Boot 后端实现与前端 OpenAPI 代码生成对齐使用，风格与现有博客模块（`blog_database_design.md`，同目录）保持一致。
 
 ### 1.2 权限模型
 

@@ -30,6 +30,11 @@ import java.util.Map;
 
 import static com.ai.agent.registry.AgentToolRegistryBuilder.*;
 
+/**
+ * 学习域 Agent 工具：清单/今日任务查询，创建任务（可加入今日待办，缺省清单为收集箱）
+ * 与切换完成状态。写操作成功后附带 refresh UI 动作刷新待办页。
+ * 仅在 chat 与 study 模块同时开启时注册。
+ */
 @ConditionalOnModule({"chat", "study"})
 @Component
 public class StudyAgentToolModule extends AgentToolModule {

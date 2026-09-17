@@ -45,6 +45,8 @@ public class ModuleEnablementService {
         map.put("worklog", resolve("worklog", overrides, appModuleProperties.isWorklog()));
         map.put("tts", resolve("tts", overrides, appModuleProperties.isTts()));
         map.put("app-lab", resolve("app-lab", overrides, appModuleProperties.isAppLab()));
+        map.put("library", resolve("library", overrides, appModuleProperties.isLibrary()));
+        map.put("pet", resolve("pet", overrides, appModuleProperties.isPet()));
         return map;
     }
 

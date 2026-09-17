@@ -1,6 +1,6 @@
 # Chat Ask / Agent 双模式 — 前端对接指南
 
-> 后端设计：[chat-agent-ask-mode-design.md](./chat-agent-ask-mode-design.md)  
+> 后端设计：[chat-agent-ask-mode-design.md](../design/chat-agent-ask-mode-design.md)  
 > 会话模型（不变）：[chat-conversation-frontend-guide.md](./chat-conversation-frontend-guide.md)  
 > Ask 模式 AstrBot SSE（不变）：[chat-astrbot-frontend-guide.md](./chat-astrbot-frontend-guide.md)
 
@@ -378,6 +378,6 @@ interface AssistantTurn {
 
 ## 12. 参考
 
-- 设计文档：[chat-agent-ask-mode-design.md](./chat-agent-ask-mode-design.md)
-- 后端入口：[ChatController.java](src/main/java/com/ai/controller/ChatController.java)、[ChatOrchestrator.java](src/main/java/com/ai/agent/ChatOrchestrator.java)
+- 设计文档：[chat-agent-ask-mode-design.md](../design/chat-agent-ask-mode-design.md)
+- 后端入口：[ChatController.java](../../src/main/java/com/ai/controller/ChatController.java)、[ChatOrchestrator.java](../../src/main/java/com/ai/agent/ChatOrchestrator.java)
 - 扩展 Tool：新增 `com.ai.agent.tools.*AgentToolModule` 即可自动注册
