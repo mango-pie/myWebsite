@@ -10,7 +10,7 @@ import com.ai.model.vo.chat.ChatAttachmentVO;
 import com.ai.service.ChatAttachmentService;
 import com.ai.service.ChatImageCaptionService;
 import com.ai.setting.runtime.ChatRuntimeSettings;
-import com.ai.utils.ChatMessageUtils;
+import com.ai.service.chat.support.ChatMessageUtils;
 import com.ai.utils.ImageUploadUtil;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;

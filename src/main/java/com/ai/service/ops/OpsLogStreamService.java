@@ -6,7 +6,6 @@ import cn.hutool.json.JSONUtil;
 import com.ai.log.LogStreamAppender;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -29,8 +28,6 @@ public class OpsLogStreamService {
 
     /** 回放缓冲条数 */
     private static final int BACKLOG_CAPACITY = 500;
-    /** 单条 SSE 心跳间隔（秒）由 @Scheduled 驱动 */
-    private static final long HEARTBEAT_SECONDS = 15;
 
     private static final int LEVEL_DEBUG = 1;
     private static final int LEVEL_INFO = 2;
@@ -77,8 +74,7 @@ public class OpsLogStreamService {
 
     public OpsLogStreamService() {
         LogStreamAppender.setSink(this::accept);
-        log.info("Ops log stream service started (backlog={}, heartbeat={}s)",
-                BACKLOG_CAPACITY, HEARTBEAT_SECONDS);
+        log.info("Ops log stream service started (backlog={})", BACKLOG_CAPACITY);
     }
 
     @PreDestroy
@@ -148,8 +144,7 @@ public class OpsLogStreamService {
         return emitter;
     }
 
-    /** SSE 心跳，防止代理断开长连接 */
-    @Scheduled(fixedDelay = HEARTBEAT_SECONDS * 1000)
+    /** SSE 心跳，防止代理断开长连接；由 OpsLogStreamHeartbeatJob 定时驱动 */
     public void heartbeat() {
         if (subscribers.isEmpty()) {
             return;

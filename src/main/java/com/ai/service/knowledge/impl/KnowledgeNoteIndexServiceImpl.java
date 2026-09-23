@@ -26,7 +26,7 @@ import com.ai.service.knowledge.KnowledgeNoteService;
 import com.ai.service.knowledge.KnowledgeVectorStoreService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -61,8 +61,10 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
     @Resource
     private KnowledgeVectorStoreService vectorStoreService;
 
+    @Resource
+    private TransactionTemplate transactionTemplate;
+
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeDocumentVO indexToKnowledgeBase(Long noteId, KnowledgeNoteIndexRequest request, Long userId) {
         KnowledgeNote note = knowledgeNoteService.requireOwned(noteId, userId);
         if (note.getKnowledgeDocumentId() != null) {
@@ -74,72 +76,67 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
         Long knowledgeBaseId = resolveKnowledgeBaseId(request, userId);
         knowledgeBaseService.requireOwned(knowledgeBaseId, userId);
 
+        // embedding 是外部 HTTP IO，放在事务外，避免长事务持有数据库连接
+        List<KnowledgeTextChunk> chunks = chunkService.split(note.getDistilledMd());
+        List<float[]> embeddings = aiModelService.embed(chunks.stream().map(KnowledgeTextChunk::content).toList());
+
         LocalDateTime now = LocalDateTime.now();
         String fileName = StrUtil.blankToDefault(note.getTitle(), "精读笔记") + ".md";
         byte[] bytes = note.getDistilledMd().getBytes(StandardCharsets.UTF_8);
-
-        KnowledgeDocument document = new KnowledgeDocument();
-        document.setKnowledgeBaseId(knowledgeBaseId);
-        document.setUserId(userId);
-        document.setSourceDocumentId(note.getSourceDocumentId());
-        document.setFileName(fileName);
-        document.setFileType(KnowledgeNoteConstant.FILE_TYPE_MD);
-        document.setFileSize((long) bytes.length);
-        document.setBucketName(KnowledgeNoteConstant.VIRTUAL_BUCKET);
-        document.setObjectKey("virtual/note/" + note.getId() + "/" + UUID.randomUUID() + ".md");
-        document.setParseStatus("PARSING");
-        document.setChunkCount(0);
-        document.setCreateTime(now);
-        document.setUpdateTime(now);
-        document.setIsDelete(0);
-        knowledgeDocumentMapper.insert(document);
-
         try {
-            List<KnowledgeTextChunk> chunks = chunkService.split(note.getDistilledMd());
-            List<float[]> embeddings = aiModelService.embed(chunks.stream().map(KnowledgeTextChunk::content).toList());
-            vectorStoreService.replaceChunks(document, chunks, embeddings);
+            return transactionTemplate.execute(status -> {
+                KnowledgeDocument document = new KnowledgeDocument();
+                document.setKnowledgeBaseId(knowledgeBaseId);
+                document.setUserId(userId);
+                document.setSourceDocumentId(note.getSourceDocumentId());
+                document.setFileName(fileName);
+                document.setFileType(KnowledgeNoteConstant.FILE_TYPE_MD);
+                document.setFileSize((long) bytes.length);
+                document.setBucketName(KnowledgeNoteConstant.VIRTUAL_BUCKET);
+                document.setObjectKey("virtual/note/" + note.getId() + "/" + UUID.randomUUID() + ".md");
+                document.setParseStatus("PARSED");
+                document.setChunkCount(chunks.size());
+                document.setParsedAt(now);
+                document.setCreateTime(now);
+                document.setUpdateTime(now);
+                document.setIsDelete(0);
+                knowledgeDocumentMapper.insert(document);
+                vectorStoreService.replaceChunks(document, chunks, embeddings);
 
-            document.setParseStatus("PARSED");
-            document.setChunkCount(chunks.size());
-            document.setParsedAt(now);
-            document.setErrorMessage(null);
-            document.setUpdateTime(LocalDateTime.now());
-            knowledgeDocumentMapper.update(document);
+                note.setKnowledgeDocumentId(document.getId());
+                note.setIndexStatus(KnowledgeNoteConstant.INDEX_INDEXED);
+                note.setLastIndexedAt(LocalDateTime.now());
+                note.setUpdateTime(LocalDateTime.now());
+                knowledgeNoteMapper.update(note);
 
-            note.setKnowledgeDocumentId(document.getId());
-            note.setIndexStatus(KnowledgeNoteConstant.INDEX_INDEXED);
-            note.setLastIndexedAt(LocalDateTime.now());
-            note.setUpdateTime(LocalDateTime.now());
-            knowledgeNoteMapper.update(note);
+                SourceDocument source = sourceDocumentMapper.selectOneById(note.getSourceDocumentId());
+                if (source != null) {
+                    source.setKnowledgeBaseId(knowledgeBaseId);
+                    source.setKnowledgeDocumentId(document.getId());
+                    source.setUpdateTime(LocalDateTime.now());
+                    sourceDocumentMapper.update(source);
+                }
 
-            SourceDocument source = sourceDocumentMapper.selectOneById(note.getSourceDocumentId());
-            if (source != null) {
-                source.setKnowledgeBaseId(knowledgeBaseId);
-                source.setKnowledgeDocumentId(document.getId());
-                source.setUpdateTime(LocalDateTime.now());
-                sourceDocumentMapper.update(source);
-            }
-
-            KnowledgeBase kb = knowledgeBaseService.getById(knowledgeBaseId);
-            if (kb != null) {
-                KnowledgeBase update = new KnowledgeBase();
-                update.setId(kb.getId());
-                update.setDocumentCount(kb.getDocumentCount() == null ? 1 : kb.getDocumentCount() + 1);
-                update.setUpdateTime(LocalDateTime.now());
-                knowledgeBaseService.updateById(update);
-            }
-            return toVO(document);
+                KnowledgeBase kb = knowledgeBaseService.getById(knowledgeBaseId);
+                if (kb != null) {
+                    KnowledgeBase update = new KnowledgeBase();
+                    update.setId(kb.getId());
+                    update.setDocumentCount(kb.getDocumentCount() == null ? 1 : kb.getDocumentCount() + 1);
+                    update.setUpdateTime(LocalDateTime.now());
+                    knowledgeBaseService.updateById(update);
+                }
+                return toVO(document);
+            });
         } catch (BusinessException e) {
-            markIndexFailed(note, document, e.getMessage());
+            markIndexFailed(note, null, e.getMessage());
             throw e;
         } catch (Exception e) {
-            markIndexFailed(note, document, e.getMessage());
+            markIndexFailed(note, null, e.getMessage());
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "加入知识库失败：" + e.getMessage());
         }
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public KnowledgeDocumentVO reindex(Long noteId, Long userId) {
         KnowledgeNote note = knowledgeNoteService.requireOwned(noteId, userId);
         if (note.getKnowledgeDocumentId() == null) {
@@ -154,38 +151,37 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
         }
 
         LocalDateTime now = LocalDateTime.now();
-        try {
-            document.setParseStatus("PARSING");
-            document.setUpdateTime(now);
-            knowledgeDocumentMapper.update(document);
+        document.setParseStatus("PARSING");
+        document.setUpdateTime(now);
+        knowledgeDocumentMapper.update(document);
 
+        try {
+            // embedding 是外部 HTTP IO，放在事务外
             List<KnowledgeTextChunk> chunks = chunkService.split(note.getDistilledMd());
             List<float[]> embeddings = aiModelService.embed(chunks.stream().map(KnowledgeTextChunk::content).toList());
-            vectorStoreService.replaceChunks(document, chunks, embeddings);
 
-            document.setFileName(StrUtil.blankToDefault(note.getTitle(), "精读笔记") + ".md");
-            document.setFileSize((long) note.getDistilledMd().getBytes(StandardCharsets.UTF_8).length);
-            document.setParseStatus("PARSED");
-            document.setChunkCount(chunks.size());
-            document.setParsedAt(now);
-            document.setErrorMessage(null);
-            document.setUpdateTime(LocalDateTime.now());
-            knowledgeDocumentMapper.update(document);
+            transactionTemplate.executeWithoutResult(status -> {
+                vectorStoreService.replaceChunks(document, chunks, embeddings);
+                document.setFileName(StrUtil.blankToDefault(note.getTitle(), "精读笔记") + ".md");
+                document.setFileSize((long) note.getDistilledMd().getBytes(StandardCharsets.UTF_8).length);
+                document.setParseStatus("PARSED");
+                document.setChunkCount(chunks.size());
+                document.setParsedAt(now);
+                document.setErrorMessage(null);
+                document.setUpdateTime(LocalDateTime.now());
+                knowledgeDocumentMapper.update(document);
 
-            note.setIndexStatus(KnowledgeNoteConstant.INDEX_INDEXED);
-            note.setLastIndexedAt(LocalDateTime.now());
-            note.setUpdateTime(LocalDateTime.now());
-            knowledgeNoteMapper.update(note);
+                note.setIndexStatus(KnowledgeNoteConstant.INDEX_INDEXED);
+                note.setLastIndexedAt(LocalDateTime.now());
+                note.setUpdateTime(LocalDateTime.now());
+                knowledgeNoteMapper.update(note);
+            });
             return toVO(document);
         } catch (BusinessException e) {
-            note.setIndexStatus(KnowledgeNoteConstant.INDEX_FAILED);
-            note.setUpdateTime(LocalDateTime.now());
-            knowledgeNoteMapper.update(note);
+            markIndexFailed(note, document, e.getMessage());
             throw e;
         } catch (Exception e) {
-            note.setIndexStatus(KnowledgeNoteConstant.INDEX_FAILED);
-            note.setUpdateTime(LocalDateTime.now());
-            knowledgeNoteMapper.update(note);
+            markIndexFailed(note, document, e.getMessage());
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "重建索引失败：" + e.getMessage());
         }
     }
@@ -207,6 +203,10 @@ public class KnowledgeNoteIndexServiceImpl implements KnowledgeNoteIndexService 
         return knowledgeBaseService.create(createRequest, userId).getId();
     }
 
+    /**
+     * 在事务回滚之后调用（自身独立提交），否则 FAILED 状态会随主事务一起回滚丢失。
+     * 文档行随主事务回滚消失时传 document=null，仅落笔记侧状态。
+     */
     private void markIndexFailed(KnowledgeNote note, KnowledgeDocument document, String message) {
         if (document != null && document.getId() != null) {
             document.setParseStatus("FAILED");

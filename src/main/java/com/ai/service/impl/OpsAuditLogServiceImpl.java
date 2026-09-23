@@ -45,8 +45,12 @@ public class OpsAuditLogServiceImpl implements OpsAuditLogService {
     @Resource
     private OpsAuditLogMapper opsAuditLogMapper;
 
+    /**
+     * ObjectProvider 延迟解析：OpsRuntimeSettings 依赖 SiteSettingService，
+     * 而后者（审计日志）依赖本服务，急切注入会形成启动期循环依赖。
+     */
     @Resource
-    private OpsRuntimeSettings opsRuntimeSettings;
+    private ObjectProvider<OpsRuntimeSettings> opsRuntimeSettingsProvider;
 
     @Resource(name = "opsLogExecutor")
     private Executor opsLogExecutor;
@@ -56,7 +60,7 @@ public class OpsAuditLogServiceImpl implements OpsAuditLogService {
 
     @Override
     public void record(OpsAuditRecord record) {
-        if (record == null || !opsRuntimeSettings.opsAuditEnabled()) {
+        if (record == null || !opsRuntimeSettingsProvider.getObject().opsAuditEnabled()) {
             return;
         }
         String detailJson = toSafeDetailJson(record.getDetail());
@@ -141,7 +145,7 @@ public class OpsAuditLogServiceImpl implements OpsAuditLogService {
 
     @Override
     public int purgeExpired() {
-        int days = Math.max(1, opsRuntimeSettings.opsAuditRetainDays());
+        int days = Math.max(1, opsRuntimeSettingsProvider.getObject().opsAuditRetainDays());
         LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
         return BatchDeletes.purge(opsAuditLogMapper,
                 () -> QueryWrapper.create().lt(OpsAuditLog::getCreateTime, cutoff));

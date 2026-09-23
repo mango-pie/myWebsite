@@ -16,12 +16,13 @@ import com.ai.service.TtsProxyService;
 import com.ai.service.TtsRefAudioUploadService;
 import com.ai.service.TtsVoiceService;
 import com.ai.setting.runtime.TtsRuntimeSettings;
-import com.ai.utils.TtsPathUtils;
+import com.ai.service.tts.support.TtsPathUtils;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
@@ -44,6 +45,9 @@ public class TtsVoiceServiceImpl extends ServiceImpl<TtsVoiceProfileMapper, TtsV
 
     @Resource
     private TtsRuntimeSettings ttsRuntimeSettings;
+
+    @Resource
+    private TransactionTemplate transactionTemplate;
 
     @Resource
     private TtsProxyService ttsProxyService;
@@ -117,11 +121,11 @@ public class TtsVoiceServiceImpl extends ServiceImpl<TtsVoiceProfileMapper, TtsV
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public long addVoice(MultipartFile file, String name, String promptText, String promptLang, String textLang) {
         if (StrUtil.isBlank(name)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "音色名称不能为空");
         }
+        // 磁盘 IO 在数据库写入之前完成，避免事务内做文件操作
         String path = ttsRefAudioUploadService.saveRefAudio(file, null);
 
         TtsVoiceProfile profile = new TtsVoiceProfile();
@@ -200,22 +204,24 @@ public class TtsVoiceServiceImpl extends ServiceImpl<TtsVoiceProfileMapper, TtsV
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public void selectDefaultVoice(Long id) {
         TtsVoiceProfile profile = getByIdOrThrow(id);
         if (profile.getStatus() != null && profile.getStatus() == 0) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "音色已禁用");
         }
 
-        List<TtsVoiceProfile> all = this.list();
-        LocalDateTime now = LocalDateTime.now();
-        for (TtsVoiceProfile p : all) {
-            TtsVoiceProfile u = new TtsVoiceProfile();
-            u.setId(p.getId());
-            u.setIsDefault(p.getId().equals(id) ? 1 : 0);
-            u.setUpdatedTime(now);
-            this.updateById(u);
-        }
+        // 默认音色切换保持原子；GPT-SoVITS 预载 HTTP 在事务提交后执行
+        transactionTemplate.executeWithoutResult(status -> {
+            List<TtsVoiceProfile> all = this.list();
+            LocalDateTime now = LocalDateTime.now();
+            for (TtsVoiceProfile p : all) {
+                TtsVoiceProfile u = new TtsVoiceProfile();
+                u.setId(p.getId());
+                u.setIsDefault(p.getId().equals(id) ? 1 : 0);
+                u.setUpdatedTime(now);
+                this.updateById(u);
+            }
+        });
 
         initReferAudio(id);
     }

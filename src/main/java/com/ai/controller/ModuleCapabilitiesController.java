@@ -2,7 +2,7 @@ package com.ai.controller;
 
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
-import com.ai.config.ModuleEnablementService;
+import com.ai.setting.runtime.ModuleEnablementService;
 import com.ai.model.vo.ModuleCapabilitiesVO;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;

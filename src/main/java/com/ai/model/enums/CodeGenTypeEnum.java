@@ -24,7 +24,6 @@ public enum CodeGenTypeEnum {
      * @return 枚举值
      */
     public static CodeGenTypeEnum getEnumByValue(String value) {
-        System.out.println("value: " + value);
         if (ObjUtil.isEmpty(value)) {
             return null;
         }

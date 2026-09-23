@@ -8,7 +8,7 @@ import com.ai.model.dto.ops.AiUsageRecord;
 import com.ai.service.AiUsageLogService;
 import com.ai.service.ChatSegmentationService;
 import com.ai.setting.runtime.ChatRuntimeSettings;
-import com.ai.utils.ChatSegmentationUtils;
+import com.ai.service.chat.support.ChatSegmentationUtils;
 import dev.langchain4j.model.chat.ChatModel;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;

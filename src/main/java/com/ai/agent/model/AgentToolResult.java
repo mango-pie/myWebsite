@@ -1,6 +1,7 @@
 package com.ai.agent.model;
 
 import cn.hutool.json.JSONUtil;
+import com.ai.model.vo.chat.AgentUiAction;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

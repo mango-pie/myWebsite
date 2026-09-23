@@ -17,7 +17,7 @@ import com.ai.model.entity.StudyTask;
 import com.ai.model.vo.study.StudyListVO;
 import com.ai.service.StudyListService;
 import com.ai.service.StudyRedisCacheService;
-import com.ai.utils.StudyDateUtils;
+import com.ai.service.study.support.StudyDateUtils;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;

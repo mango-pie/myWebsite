@@ -7,7 +7,7 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.ai.agent.model.AgentToolContext;
 import com.ai.agent.model.AgentToolResult;
-import com.ai.agent.model.AgentUiAction;
+import com.ai.model.vo.chat.AgentUiAction;
 import com.ai.agent.registry.AgentToolModule;
 import com.ai.agent.registry.AgentToolRegistryBuilder;
 import com.ai.constant.StudyConstant;

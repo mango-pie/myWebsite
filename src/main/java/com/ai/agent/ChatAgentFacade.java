@@ -24,7 +24,7 @@ import com.ai.service.ChatConversationService;
 import com.ai.service.ChatMessageService;
 import com.ai.service.UserService;
 import com.ai.utils.AiUsageTokenExtractor;
-import com.ai.utils.ChatMessageUtils;
+import com.ai.service.chat.support.ChatMessageUtils;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.AiMessage;

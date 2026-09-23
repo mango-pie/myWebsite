@@ -1,6 +1,5 @@
 package com.ai.model.vo.chat;
 
-import com.ai.agent.model.AgentUiAction;
 import lombok.Data;
 
 import java.io.Serializable;

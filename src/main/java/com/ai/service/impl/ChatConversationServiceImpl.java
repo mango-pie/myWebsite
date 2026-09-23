@@ -15,7 +15,7 @@ import com.ai.service.AstrBotChatService;
 import com.ai.service.BizStatDailyService;
 import com.ai.service.ChatConversationService;
 import com.ai.service.ChatMessageService;
-import com.ai.utils.ChatSessionUtils;
+import com.ai.service.chat.support.ChatSessionUtils;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;

@@ -29,9 +29,10 @@ import com.ai.setting.SiteSettingCrypto;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -60,10 +61,9 @@ public class SiteSettingServiceImpl implements SiteSettingService {
     private SiteSettingAuditService siteSettingAuditService;
 
     /**
-     * Lazy: OpsAuditLogService → OpsRuntimeSettings → SiteSettingService，
-     * 若这里急切注入会形成启动期循环依赖。
+     * OpsAuditLogService 经 ObjectProvider 延迟解析 OpsRuntimeSettings，
+     * 此处可安全急切注入（启动环已在对面拆掉）。
      */
-    @Lazy
     @Resource
     private OpsAuditLogService opsAuditLogService;
 
@@ -196,8 +196,8 @@ public class SiteSettingServiceImpl implements SiteSettingService {
             }
         }
 
-        siteSettingCache.evict(moduleCode);
-        module.onChanged();
+        // 缓存驱逐与客户端重建属于副作用，等事务提交后再做，避免回滚后残留新状态
+        evictAndNotifyAfterCommit(moduleCode, module);
     }
 
     @Override
@@ -217,8 +217,22 @@ public class SiteSettingServiceImpl implements SiteSettingService {
                     operatorId, SiteSettingAuditConstant.ACTION_RESET);
         }
         siteSettingMapper.deleteByQuery(query);
-        siteSettingCache.evict(moduleCode);
-        module.onChanged();
+        evictAndNotifyAfterCommit(moduleCode, module);
+    }
+
+    private void evictAndNotifyAfterCommit(String moduleCode, SettingModule module) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            siteSettingCache.evict(moduleCode);
+            module.onChanged();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                siteSettingCache.evict(moduleCode);
+                module.onChanged();
+            }
+        });
     }
 
     @Override

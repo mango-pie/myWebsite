@@ -103,6 +103,7 @@
             <groupId>com.mybatis-flex</groupId>
             <artifactId>mybatis-flex-codegen</artifactId>
             <version>1.11.0</version>
+            <scope>test</scope>
         </dependency>
         <!-- 数据库连接池 -->
         <dependency>

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 按保留策略清理用量、操作审计、业务日统计、HTTP 访问日志。
+ * 四类日志各自独立清理，一类失败不影响其余。
  */
 @Slf4j
 @ConditionalOnModule("ops")
@@ -31,19 +32,24 @@ public class OpsRetentionCleanupJob {
     @Resource
     private HttpAccessLogService httpAccessLogService;
 
-    @Scheduled(cron = "0 30 3 * * ?")
+    @Scheduled(cron = "${app.jobs.ops-retention-cron:0 30 3 * * ?}")
     public void purgeExpiredLogs() {
+        int usageDeleted = purgeOne("ai_usage_log", aiUsageLogService::purgeExpired);
+        int auditDeleted = purgeOne("ops_audit_log", opsAuditLogService::purgeExpired);
+        int bizDeleted = purgeOne("biz_stat_daily", bizStatDailyService::purgeExpired);
+        int httpDeleted = purgeOne("http_access_log", httpAccessLogService::purgeExpired);
+        if (usageDeleted > 0 || auditDeleted > 0 || bizDeleted > 0 || httpDeleted > 0) {
+            log.info("Ops retention cleanup: ai_usage_log={}, ops_audit_log={}, biz_stat_daily={}, http_access_log={}",
+                    usageDeleted, auditDeleted, bizDeleted, httpDeleted);
+        }
+    }
+
+    private int purgeOne(String name, java.util.function.IntSupplier purge) {
         try {
-            int usageDeleted = aiUsageLogService.purgeExpired();
-            int auditDeleted = opsAuditLogService.purgeExpired();
-            int bizDeleted = bizStatDailyService.purgeExpired();
-            int httpDeleted = httpAccessLogService.purgeExpired();
-            if (usageDeleted > 0 || auditDeleted > 0 || bizDeleted > 0 || httpDeleted > 0) {
-                log.info("Ops retention cleanup: ai_usage_log={}, ops_audit_log={}, biz_stat_daily={}, http_access_log={}",
-                        usageDeleted, auditDeleted, bizDeleted, httpDeleted);
-            }
+            return purge.getAsInt();
         } catch (Exception e) {
-            log.warn("Ops retention cleanup failed: {}", e.getMessage());
+            log.warn("Ops retention cleanup failed for {}: {}", name, e.getMessage());
+            return 0;
         }
     }
 }

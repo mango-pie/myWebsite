@@ -15,7 +15,7 @@ import com.ai.model.vo.study.StudyRangeStatsVO;
 import com.ai.model.vo.study.StudyTodayStatsVO;
 import com.ai.service.StudyRedisCacheService;
 import com.ai.service.StudyStatsService;
-import com.ai.utils.StudyDateUtils;
+import com.ai.service.study.support.StudyDateUtils;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;

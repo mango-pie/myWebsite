@@ -21,7 +21,7 @@ import com.ai.service.StudyTaskChecklistService;
 import com.ai.service.StudyTaskService;
 import com.ai.service.study.spi.BlogDraftItem;
 import com.ai.service.study.spi.BlogDraftReader;
-import com.ai.utils.StudyDateUtils;
+import com.ai.service.study.support.StudyDateUtils;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;

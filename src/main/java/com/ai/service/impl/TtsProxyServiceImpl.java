@@ -11,7 +11,7 @@ import com.ai.model.entity.TtsVoiceProfile;
 import com.ai.service.IntegrationCredentialsService;
 import com.ai.service.TtsProxyService;
 import com.ai.setting.runtime.TtsRuntimeSettings;
-import com.ai.utils.TtsPathUtils;
+import com.ai.service.tts.support.TtsPathUtils;
 import jakarta.annotation.Resource;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;

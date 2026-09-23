@@ -11,7 +11,7 @@ import com.ai.exception.ErrorCode;
 import com.ai.service.IntegrationCredentialsService;
 import com.ai.service.TtsRefAudioUploadService;
 import com.ai.setting.runtime.TtsRuntimeSettings;
-import com.ai.utils.TtsPathUtils;
+import com.ai.service.tts.support.TtsPathUtils;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
