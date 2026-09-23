@@ -258,6 +258,11 @@ app:
     max-file-size-bytes: ${LIBRARY_MAX_FILE_SIZE_BYTES:2147483648}  # 2 GiB
     presign-expire-seconds: ${LIBRARY_PRESIGN_EXPIRE_SECONDS:3600}
     recycle-retention-days: ${LIBRARY_RECYCLE_RETENTION_DAYS:30}
+  agent:
+    token: ${AGENT_TOKEN:}
+    user-id: ${AGENT_USER_ID:}
+    # 令牌仅对这些路径前缀生效（逗号分隔）；留空=全站生效，生产建议收敛
+    path-prefixes: ${AGENT_PATH_PREFIXES:}
   deploy:
     host: ${APP_DEPLOY_HOST:http://localhost}
     code-output-dir: ${APP_CODE_OUTPUT_DIR:}

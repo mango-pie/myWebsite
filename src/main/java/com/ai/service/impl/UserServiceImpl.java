@@ -186,6 +186,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
 
     @Override
     public User getLoginUser(HttpServletRequest request) {
+        // Agent 令牌鉴权（AgentAuthFilter 写入的 request 属性）优先，避免为脚本调用持久化会话
+        Object agentUserObj = request.getAttribute(UserConstant.AGENT_LOGIN_STATE);
+        if (agentUserObj instanceof User agentUser && agentUser.getId() != null) {
+            User current = this.getById(agentUser.getId());
+            if (current == null) {
+                throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            }
+            return current;
+        }
         // 先判断是否已登录
         Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
         User currentUser = (User) userObj;
