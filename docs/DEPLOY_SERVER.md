@@ -296,21 +296,27 @@ sudo systemctl reload nginx
 
 ## 第 8 步：日常更新
 
+不要从 Windows 再 SCP 上传 100MB+ 的后端 JAR。服务器已安装 `/usr/local/bin/ai-update`。
+
 ### 更新前端
 
+`git push` 到 `restore-polished-ui` 后 SSH：
+
 ```bash
-cd /tmp && rm -rf Ai-frontend && git clone https://github.com/mango-pie/Ai-frontend.git
-sudo rsync -a --delete Ai-frontend/AI-frontend/dist/ ${WEB_ROOT}/
+ai-update frontend
 ```
+
+尚未 push 时，本机执行 `powershell -File AI-frontend/scripts/sync-prod.ps1`（只传 dist，约几十 MB）。
 
 ### 更新后端
 
+`git push` 到 `feature/module-decoupling` 后 SSH：
+
 ```bash
-# 上传新 JAR 后
-sudo systemctl stop ai-backend
-sudo cp AI-0.0.1-SNAPSHOT.jar ${APP_ROOT}/
-sudo systemctl start ai-backend
+ai-update backend
 ```
+
+服务器会 Maven 打包并重启，无需从本地传 JAR。
 
 ### 数据库增量
 
