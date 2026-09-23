@@ -16,6 +16,12 @@ public interface LibraryStorageService {
 
     byte[] download(String bucket, String objectKey);
 
+    /** 服务端中转上传（浏览器打不到内网 MinIO 时使用） */
+    void put(String bucket, String objectKey, java.io.InputStream stream, long objectSize, String contentType);
+
+    /** 把对象流式写出（避免整文件进内存） */
+    void writeTo(String bucket, String objectKey, java.io.OutputStream out);
+
     void remove(String bucket, String objectKey);
 
     void ensureBucket(String bucket);

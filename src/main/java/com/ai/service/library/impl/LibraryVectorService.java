@@ -16,7 +16,12 @@ import java.util.List;
 
 /**
  * 档案库语义搜索向量存取（pgvector）。
- * 复用 knowledge.vector.datasource 连接配置；表结构见 sql/library_pgvector_schema.sql。
+ * 表结构见 sql/library_pgvector_schema.sql。
+ *
+ * <p>复用 knowledge.vector.datasource 连接配置是有意的共享基础设施设计：
+ * 资料库与知识库的向量表同库不同表（library_file_embedding / knowledge_*），
+ * 共用同一个 pgvector 实例，因此配置类归知识库模块统一持有。
+ * 这是纯配置级依赖，本类不含对 knowledge 任何 Service 的引用。
  */
 @Slf4j
 @ConditionalOnModule("library")

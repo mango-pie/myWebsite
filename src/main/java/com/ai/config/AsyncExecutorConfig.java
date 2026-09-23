@@ -46,4 +46,23 @@ public class AsyncExecutorConfig {
         executor.setAwaitTerminationSeconds(30);
         return executor;
     }
+
+    /**
+     * 资料库 AI 工作线程（摘要解析/向量回填/转知识库）。
+     * 单线程维持「同一时刻至多一个 AI 任务」的语义；队列满（64）时 AbortPolicy
+     * 快速失败，由调用方提示稍后再试，而不是无限堆积。
+     */
+    @Bean("libraryAiExecutor")
+    public ThreadPoolTaskExecutor libraryAiExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setThreadNamePrefix("library-ai-");
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(64);
+        executor.setDaemon(true);
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(5);
+        return executor;
+    }
 }

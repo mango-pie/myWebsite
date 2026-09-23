@@ -20,6 +20,8 @@ server:
     threads:
       max: 30
       min-spare: 5
+    max-swallow-size: 64MB
+    max-http-form-post-size: 64MB
 
 upload:
   path: /app/uploads/

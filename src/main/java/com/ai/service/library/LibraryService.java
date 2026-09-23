@@ -35,6 +35,15 @@ public interface LibraryService {
 
     LibraryFileVO uploadComplete(LibraryUploadCompleteRequest request, Long userId);
 
+    /**
+     * 浏览器无法直连内网 MinIO 时，把文件体经后端写入对象存储并完成登记。
+     */
+    LibraryFileVO uploadContent(Long fileId, Long userId, java.io.InputStream body, long contentLength,
+                                String contentType);
+
+    /** 流式下载（同域，带登录态），避免把预签名里的 127.0.0.1 交给浏览器。 */
+    void streamDownload(Long fileId, Long userId, jakarta.servlet.http.HttpServletResponse response);
+
     LibraryDownloadUrlVO downloadUrl(Long fileId, Long userId);
 
     boolean open(Long fileId, Long userId);

@@ -8,15 +8,20 @@ import com.ai.service.IntegrationCredentialsService;
 import com.ai.service.library.LibraryStorageService;
 import com.ai.setting.IntegrationClientCache;
 import io.minio.BucketExistsArgs;
+import io.minio.GetObjectArgs;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
 import io.minio.StatObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.io.InputStream;
+import java.io.OutputStream;
 
 @Slf4j
 @ConditionalOnModule("library")
@@ -79,13 +84,51 @@ public class MinioLibraryStorageServiceImpl implements LibraryStorageService {
 
     @Override
     public byte[] download(String bucket, String objectKey) {
-        try (var stream = client().getObject(io.minio.GetObjectArgs.builder()
+        try (var stream = client().getObject(GetObjectArgs.builder()
                 .bucket(bucket)
                 .object(objectKey)
                 .build())) {
             return stream.readAllBytes();
         } catch (Exception e) {
             log.error("Download library object failed, bucket={}, objectKey={}", bucket, objectKey, e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "读取资料库文件失败");
+        }
+    }
+
+    @Override
+    public void put(String bucket, String objectKey, InputStream stream, long objectSize, String contentType) {
+        try {
+            long size = objectSize >= 0 ? objectSize : -1;
+            long partSize = size < 0 ? 10L * 1024 * 1024 : -1;
+            String type = (contentType == null || contentType.isBlank()
+                    || contentType.startsWith("multipart/"))
+                    ? "application/octet-stream"
+                    : contentType;
+            client().putObject(PutObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .stream(stream, size, partSize)
+                    .contentType(type)
+                    .build());
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Put library object failed, bucket={}, objectKey={}", bucket, objectKey, e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "资料库文件写入失败");
+        }
+    }
+
+    @Override
+    public void writeTo(String bucket, String objectKey, OutputStream out) {
+        try (var stream = client().getObject(GetObjectArgs.builder()
+                .bucket(bucket)
+                .object(objectKey)
+                .build())) {
+            stream.transferTo(out);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Stream library object failed, bucket={}, objectKey={}", bucket, objectKey, e);
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "读取资料库文件失败");
         }
     }

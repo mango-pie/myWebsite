@@ -23,14 +23,17 @@ import com.ai.service.UserService;
 import com.ai.service.library.LibraryService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -97,6 +100,26 @@ public class LibraryController {
                                                       HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         return ResultUtils.success(libraryService.uploadComplete(completeRequest, loginUser.getId()));
+    }
+
+    /**
+     * 浏览器无法直连内网 MinIO 时，把文件体经后端写入（与预签名 PUT 二选一）。
+     */
+    @PutMapping("/files/{id}/content")
+    public BaseResponse<LibraryFileVO> uploadContent(@PathVariable Long id,
+                                                     HttpServletRequest request) throws IOException {
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(libraryService.uploadContent(
+                id, loginUser.getId(), request.getInputStream(), request.getContentLengthLong(),
+                request.getContentType()));
+    }
+
+    /** 同域流式下载，带登录 Cookie，不依赖浏览器访问 MinIO。 */
+    @GetMapping("/files/{id}/content")
+    public void downloadContent(@PathVariable Long id, HttpServletRequest request,
+                                HttpServletResponse response) {
+        User loginUser = userService.getLoginUser(request);
+        libraryService.streamDownload(id, loginUser.getId(), response);
     }
 
     @GetMapping("/files/{id}/download-url")
