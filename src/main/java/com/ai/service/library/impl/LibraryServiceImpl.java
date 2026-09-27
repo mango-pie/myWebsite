@@ -2,7 +2,10 @@ package com.ai.service.library.impl;
 
 import com.ai.config.ConditionalOnModule;
 
+import com.ai.model.dto.library.LibraryCollectionCreateRequest;
+import com.ai.model.dto.library.LibraryFileCollectionRemoveRequest;
 import com.ai.model.dto.library.LibraryFileQueryRequest;
+import com.ai.model.dto.library.LibraryFileRenameRequest;
 import com.ai.model.dto.library.LibraryFileTagsRequest;
 import com.ai.model.dto.library.LibraryFilesCollectionsRequest;
 import com.ai.model.dto.library.LibraryIdsRequest;
@@ -73,6 +76,41 @@ public class LibraryServiceImpl implements LibraryService {
     @Override
     public List<LibraryCollectionVO> listCollections(Long userId) {
         return fileOpsService.listCollections(userId);
+    }
+
+    @Override
+    public LibraryCollectionVO createCollection(LibraryCollectionCreateRequest request, Long userId) {
+        return fileOpsService.createCollection(request, userId);
+    }
+
+    @Override
+    public boolean updateCollection(Long collectionId, LibraryCollectionCreateRequest request, Long userId) {
+        return fileOpsService.updateCollection(collectionId, request, userId);
+    }
+
+    @Override
+    public boolean deleteCollection(Long collectionId, Long userId) {
+        return fileOpsService.deleteCollection(collectionId, userId);
+    }
+
+    @Override
+    public LibraryTagVO updateTag(Long tagId, LibraryTagCreateRequest request, Long userId) {
+        return fileOpsService.updateTag(tagId, request, userId);
+    }
+
+    @Override
+    public boolean deleteTag(Long tagId, Long userId) {
+        return fileOpsService.deleteTag(tagId, userId);
+    }
+
+    @Override
+    public boolean removeFileCollection(Long fileId, LibraryFileCollectionRemoveRequest request, Long userId) {
+        return fileOpsService.removeFileCollection(fileId, request, userId);
+    }
+
+    @Override
+    public LibraryFileVO renameFile(Long fileId, LibraryFileRenameRequest request, Long userId) {
+        return fileOpsService.renameFile(fileId, request, userId);
     }
 
     // ---------- 上传 / 下载 ----------

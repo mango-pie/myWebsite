@@ -32,7 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @ConditionalOnModule("study")
@@ -41,6 +44,9 @@ public class StudyTaskServiceImpl extends ServiceImpl<StudyTaskMapper, StudyTask
 
     @Resource
     private StudyListService studyListService;
+
+    @Resource
+    private StudyTaskMapper studyTaskMapper;
 
     @Lazy
     @Resource
@@ -265,17 +271,37 @@ public class StudyTaskServiceImpl extends ServiceImpl<StudyTaskMapper, StudyTask
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         studyListService.getOwnedList(request.getListId(), userId);
+
+        // 一次 IN 查询批量取回任务，替代循环内逐条 getOwnedTask
+        Map<Long, StudyTask> taskMap = listOwnedTasksByIds(userId, request.getItems().stream()
+                .map(StudyTaskSortRequest.SortItem::getId)
+                .collect(Collectors.toList()));
+
+        // 逐项校验，报错类型与顺序和原逐条 getOwnedTask + 清单归属判断保持一致
         for (StudyTaskSortRequest.SortItem item : request.getItems()) {
-            StudyTask task = getOwnedTask(item.getId(), userId);
+            if (item.getId() == null || item.getId() <= 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR);
+            }
+            StudyTask task = taskMap.get(item.getId());
+            if (task == null) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务不存在或无权访问");
+            }
             if (!request.getListId().equals(task.getListId())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "任务不属于该清单");
             }
-            StudyTask update = new StudyTask();
-            update.setId(item.getId());
-            update.setSortOrder(item.getSortOrder());
-            update.setUpdatedTime(LocalDateTime.now());
-            this.updateById(update);
         }
+
+        // 解析每个任务的最终排序值：null 排序值保持当前值（原 updateById 忽略 null 字段的语义），
+        // 同一任务多次出现时后一个非空值覆盖前值，按 id 去重后单条 SQL 批量更新
+        Map<Long, Integer> sortOrders = new LinkedHashMap<>();
+        for (StudyTaskSortRequest.SortItem item : request.getItems()) {
+            if (item.getSortOrder() != null) {
+                sortOrders.put(item.getId(), item.getSortOrder());
+            } else if (!sortOrders.containsKey(item.getId())) {
+                sortOrders.put(item.getId(), taskMap.get(item.getId()).getSortOrder());
+            }
+        }
+        studyTaskMapper.updateSortOrderBatch(userId, sortOrders, LocalDateTime.now());
         return true;
     }
 
@@ -286,21 +312,47 @@ public class StudyTaskServiceImpl extends ServiceImpl<StudyTaskMapper, StudyTask
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         studyListService.getOwnedList(request.getTargetListId(), userId);
-        int pendingMoved = 0;
+
+        // 一次 IN 查询批量取回任务，替代循环内逐条 getOwnedTask
+        Map<Long, StudyTask> taskMap = listOwnedTasksByIds(userId, request.getTaskIds());
+
+        // 逐项校验，报错类型与顺序和原逐条 getOwnedTask 保持一致
         for (Long taskId : request.getTaskIds()) {
-            StudyTask task = getOwnedTask(taskId, userId);
+            if (taskId == null || taskId <= 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR);
+            }
+            if (!taskMap.containsKey(taskId)) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务不存在或无权访问");
+            }
+        }
+
+        // 仅移动不在目标清单里的任务；重复 id 只处理一次，与原循环内 continue 跳过语义一致
+        List<Long> movedIds = new ArrayList<>();
+        Map<Long, Integer> pendingCountByList = new LinkedHashMap<>();
+        int pendingMoved = 0;
+        for (StudyTask task : taskMap.values()) {
             if (task.getListId().equals(request.getTargetListId())) {
                 continue;
             }
+            movedIds.add(task.getId());
             if (StudyConstant.TASK_STATUS_PENDING == task.getStatus()) {
-                studyListService.adjustTaskCount(task.getListId(), -1);
+                pendingCountByList.merge(task.getListId(), 1, Integer::sum);
                 pendingMoved++;
             }
-            StudyTask update = new StudyTask();
-            update.setId(taskId);
-            update.setListId(request.getTargetListId());
-            update.setUpdatedTime(LocalDateTime.now());
-            this.updateById(update);
+        }
+
+        // 移动结果一条 UPDATE 批量落库
+        if (!movedIds.isEmpty()) {
+            StudyTask patch = new StudyTask();
+            patch.setListId(request.getTargetListId());
+            patch.setUpdatedTime(LocalDateTime.now());
+            this.update(patch, QueryWrapper.create().in("id", movedIds));
+        }
+
+        // 计数在循环外按最终状态一次计算：每个来源清单聚合调整一次，目标清单一次
+        // （同为负向增量，一次性 clamp 与原逐次 -1 的 clamp 结果一致）
+        for (Map.Entry<Long, Integer> entry : pendingCountByList.entrySet()) {
+            studyListService.adjustTaskCount(entry.getKey(), -entry.getValue());
         }
         if (pendingMoved > 0) {
             studyListService.adjustTaskCount(request.getTargetListId(), pendingMoved);
@@ -361,6 +413,25 @@ public class StudyTaskServiceImpl extends ServiceImpl<StudyTaskMapper, StudyTask
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "任务不存在或无权访问");
         }
         return task;
+    }
+
+    /**
+     * 按 id 批量取回本人未删除任务（过滤非法 id），查询条件与 getOwnedTask 一致，
+     * 供 sortTasks/moveTasks 一次 IN 查询完成归属校验。
+     */
+    private Map<Long, StudyTask> listOwnedTasksByIds(Long userId, List<Long> taskIds) {
+        List<Long> validIds = taskIds.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .collect(Collectors.toList());
+        if (validIds.isEmpty()) {
+            return Map.of();
+        }
+        List<StudyTask> tasks = this.list(QueryWrapper.create()
+                .where("user_id = ?", userId)
+                .and("deleted_time IS NULL")
+                .in("id", validIds));
+        return tasks.stream().collect(Collectors.toMap(StudyTask::getId, Function.identity()));
     }
 
     private StudyTaskVO toVO(StudyTask task, boolean withChecklist) {

@@ -25,7 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @ConditionalOnModule("study")
@@ -34,6 +37,9 @@ public class StudyListServiceImpl extends ServiceImpl<StudyListMapper, StudyList
 
     @Resource
     private StudyTaskMapper studyTaskMapper;
+
+    @Resource
+    private StudyListMapper studyListMapper;
 
     @Resource
     private StudyRedisCacheService studyRedisCacheService;
@@ -160,14 +166,33 @@ public class StudyListServiceImpl extends ServiceImpl<StudyListMapper, StudyList
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
+
+        // 一次 IN 查询批量取回清单，替代循环内逐条 getOwnedList
+        Map<Long, StudyList> listMap = listOwnedListByIds(userId, request.getItems().stream()
+                .map(StudyListSortRequest.SortItem::getId)
+                .collect(Collectors.toList()));
+
+        // 逐项校验，报错类型与顺序和原逐条 getOwnedList 保持一致
         for (StudyListSortRequest.SortItem item : request.getItems()) {
-            getOwnedList(item.getId(), userId);
-            StudyList update = new StudyList();
-            update.setId(item.getId());
-            update.setSortOrder(item.getSortOrder());
-            update.setUpdatedTime(LocalDateTime.now());
-            this.updateById(update);
+            if (item.getId() == null || item.getId() <= 0) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR);
+            }
+            if (!listMap.containsKey(item.getId())) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "清单不存在或无权访问");
+            }
         }
+
+        // 解析每个清单的最终排序值：null 排序值保持当前值（原 updateById 忽略 null 字段的语义），
+        // 同一清单多次出现时后一个非空值覆盖前值，按 id 去重后单条 SQL 批量更新
+        Map<Long, Integer> sortOrders = new LinkedHashMap<>();
+        for (StudyListSortRequest.SortItem item : request.getItems()) {
+            if (item.getSortOrder() != null) {
+                sortOrders.put(item.getId(), item.getSortOrder());
+            } else if (!sortOrders.containsKey(item.getId())) {
+                sortOrders.put(item.getId(), listMap.get(item.getId()).getSortOrder());
+            }
+        }
+        studyListMapper.updateSortOrderBatch(userId, sortOrders, LocalDateTime.now());
         studyRedisCacheService.evictLists(userId);
         return true;
     }
@@ -233,6 +258,25 @@ public class StudyListServiceImpl extends ServiceImpl<StudyListMapper, StudyList
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "清单不存在或无权访问");
         }
         return list;
+    }
+
+    /**
+     * 按 id 批量取回本人未删除清单（过滤非法 id），查询条件与 getOwnedList 一致，
+     * 供 sortLists 一次 IN 查询完成归属校验。
+     */
+    private Map<Long, StudyList> listOwnedListByIds(Long userId, List<Long> listIds) {
+        List<Long> validIds = listIds.stream()
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .collect(Collectors.toList());
+        if (validIds.isEmpty()) {
+            return Map.of();
+        }
+        List<StudyList> lists = this.list(QueryWrapper.create()
+                .where("user_id = ?", userId)
+                .and("deleted_time IS NULL")
+                .in("id", validIds));
+        return lists.stream().collect(Collectors.toMap(StudyList::getId, Function.identity()));
     }
 
     @Transactional(rollbackFor = Exception.class)

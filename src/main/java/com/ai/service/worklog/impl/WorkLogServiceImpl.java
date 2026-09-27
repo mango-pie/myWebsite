@@ -14,16 +14,23 @@ import com.ai.model.vo.worklog.WorkLogEntryVO;
 import com.ai.model.vo.worklog.WorkLogImportResultVO;
 import com.ai.service.worklog.WorkLogService;
 import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.row.Db;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @ConditionalOnModule("worklog")
@@ -34,9 +41,14 @@ public class WorkLogServiceImpl implements WorkLogService {
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final int MAX_LIST_LIMIT = 1000;
     private static final int MAX_IMPORT_ENTRIES = 5000;
+    /** 批量落库的每批条数，避免单条 SQL 过大 */
+    private static final int IMPORT_BATCH_SIZE = 1000;
 
     @Resource
     private WorkLogMapper workLogMapper;
+
+    @Resource
+    private TransactionTemplate transactionTemplate;
 
     @Override
     public WorkLogEntryVO save(WorkLogSaveRequest request, Long userId) {
@@ -102,6 +114,20 @@ public class WorkLogServiceImpl implements WorkLogService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "单次导入条数超出限制");
         }
         boolean overwrite = Boolean.TRUE.equals(request.getOverwrite());
+        // 预解析收集涉及日期，一次性查出本用户这些日期的已有记录，消除循环内逐条 findByDate 的 N+1 查询；
+        // 与改前一致：解析失败条目不参与查询，主循环中照常计入 skipped
+        Set<LocalDate> involvedDates = new LinkedHashSet<>();
+        for (WorkLogSaveRequest entry : request.getEntries()) {
+            try {
+                involvedDates.add(parseDate(entry == null ? null : entry.getWorkDate()));
+            } catch (BusinessException ignored) {
+                // 无效日期条目在主循环中跳过并计数
+            }
+        }
+        // 日期 → 已有记录的内存索引：upsert 判断全部走该 map，不再逐条查库
+        Map<LocalDate, WorkLog> existingMap = findExistingByDates(userId, involvedDates);
+        List<WorkLog> toInsert = new ArrayList<>();
+        List<WorkLog> toUpdate = new ArrayList<>();
         for (WorkLogSaveRequest entry : request.getEntries()) {
             LocalDate workDate;
             try {
@@ -110,23 +136,69 @@ public class WorkLogServiceImpl implements WorkLogService {
                 result.setSkipped(result.getSkipped() + 1);
                 continue;
             }
-            WorkLog existing = findByDate(userId, workDate);
-            if (existing != null && !overwrite) {
+            WorkLog entity = existingMap.get(workDate);
+            if (entity != null && !overwrite) {
                 result.setSkipped(result.getSkipped() + 1);
                 continue;
             }
-            WorkLogSaveRequest single = new WorkLogSaveRequest();
-            single.setWorkDate(entry.getWorkDate());
-            single.setTitle(entry.getTitle());
-            single.setDone(entry.getDone());
-            single.setProblem(entry.getProblem());
-            single.setSummary(entry.getSummary());
-            single.setPlan(entry.getPlan());
-            single.setTags(entry.getTags());
-            save(single, userId);
+            if (entity == null) {
+                // 新日期：新建待插入实体并登记进 map，同批同日的后续条目会命中它
+                entity = new WorkLog();
+                entity.setUserId(userId);
+                entity.setWorkDate(workDate);
+                entity.setCreateTime(LocalDateTime.now());
+                existingMap.put(workDate, entity);
+                toInsert.add(entity);
+            } else if (entity.getId() != null) {
+                // 数据库已有记录：加入待更新列表；同批同日多条会重复加入，
+                // 批量按序执行、后写覆盖，与改前逐条 update 的最终状态一致
+                toUpdate.add(entity);
+            }
+            // 命中的是本批待插入实体（同批同日重复条目）时仅覆盖字段值，
+            // 随首次 INSERT 一并落库，等价改前“先 insert 后 update”
+            LocalDateTime now = LocalDateTime.now();
+            entity.setTitle(entry.getTitle());
+            entity.setDone(entry.getDone());
+            entity.setProblem(entry.getProblem());
+            entity.setSummary(entry.getSummary());
+            entity.setPlan(entry.getPlan());
+            entity.setTags(toTagsJson(entry.getTags()));
+            entity.setUpdateTime(now);
             result.setImported(result.getImported() + 1);
         }
+        if (!toInsert.isEmpty() || !toUpdate.isEmpty()) {
+            // 批量写入包进事务：插入与更新两阶段要么全部生效、要么全部回滚，
+            // 避免中途失败（如单条数据超长）留下“已插入未更新”的部分持久化；
+            // 回滚后异常继续上抛，仍由全局异常处理器返回错误响应
+            transactionTemplate.executeWithoutResult(status -> {
+                if (!toInsert.isEmpty()) {
+                    workLogMapper.insertBatch(toInsert, IMPORT_BATCH_SIZE);
+                }
+                if (!toUpdate.isEmpty()) {
+                    // Flex 1.11.0 的 BaseMapper 无批量更新接口，用 Db.executeBatch 在 BATCH 会话中
+                    // 逐条调用与改前相同的 update(entity)（忽略 null 字段、按 id 更新），仅合并提交
+                    Db.executeBatch(toUpdate, IMPORT_BATCH_SIZE, WorkLogMapper.class, WorkLogMapper::update);
+                }
+            });
+        }
         return result;
+    }
+
+    /**
+     * 一次性查出本用户在给定日期集合下的已有记录，按日期建索引。
+     */
+    private Map<LocalDate, WorkLog> findExistingByDates(Long userId, Collection<LocalDate> workDates) {
+        if (workDates.isEmpty()) {
+            return new HashMap<>();
+        }
+        List<WorkLog> rows = workLogMapper.selectListByQuery(QueryWrapper.create()
+                .eq("user_id", userId)
+                .in("work_date", workDates));
+        Map<LocalDate, WorkLog> existingMap = new HashMap<>();
+        for (WorkLog row : rows) {
+            existingMap.put(row.getWorkDate(), row);
+        }
+        return existingMap;
     }
 
     private WorkLog findByDate(Long userId, LocalDate workDate) {

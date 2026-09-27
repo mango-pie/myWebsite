@@ -1,6 +1,9 @@
 package com.ai.service.library;
 
+import com.ai.model.dto.library.LibraryCollectionCreateRequest;
+import com.ai.model.dto.library.LibraryFileCollectionRemoveRequest;
 import com.ai.model.dto.library.LibraryFileQueryRequest;
+import com.ai.model.dto.library.LibraryFileRenameRequest;
 import com.ai.model.dto.library.LibraryFileTagsRequest;
 import com.ai.model.dto.library.LibraryFilesCollectionsRequest;
 import com.ai.model.dto.library.LibraryIdsRequest;
@@ -30,6 +33,26 @@ public interface LibraryService {
     LibraryTagVO createTag(LibraryTagCreateRequest request, Long userId);
 
     List<LibraryCollectionVO> listCollections(Long userId);
+
+    LibraryCollectionVO createCollection(LibraryCollectionCreateRequest request, Long userId);
+
+    /** 合集重命名（color 提供时一并更新），返回是否成功 */
+    boolean updateCollection(Long collectionId, LibraryCollectionCreateRequest request, Long userId);
+
+    /** 删除合集：文件保留，仅解除文件上的归属关联 */
+    boolean deleteCollection(Long collectionId, Long userId);
+
+    /** 标签重命名/换色（文件挂的是标签 id，无需同步文件行） */
+    LibraryTagVO updateTag(Long tagId, LibraryTagCreateRequest request, Long userId);
+
+    /** 删除标签：同步剥离所有文件上的该标签 */
+    boolean deleteTag(Long tagId, Long userId);
+
+    /** 文件移出合集（幂等：不在合集中视为已移除） */
+    boolean removeFileCollection(Long fileId, LibraryFileCollectionRemoveRequest request, Long userId);
+
+    /** 文件重命名（仅改 file_name，扩展名/对象键不变） */
+    LibraryFileVO renameFile(Long fileId, LibraryFileRenameRequest request, Long userId);
 
     LibraryUploadInitVO uploadInit(LibraryUploadInitRequest request, Long userId);
 

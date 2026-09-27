@@ -8,6 +8,7 @@ import com.ai.constant.BizStatMetricConstant;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.mapper.chat.ChatMessageMapper;
+import com.ai.model.dto.chat.ChatMessageCountRow;
 import com.ai.model.entity.ChatMessage;
 import com.ai.model.enums.ChatMessageSourceEnum;
 import com.ai.model.enums.MessageTypeEnum;
@@ -23,7 +24,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -136,6 +140,21 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .eq(ChatMessage::getConversationId, conversationId);
         return this.count(queryWrapper);
+    }
+
+    @Override
+    public Map<Long, Long> countByConversations(List<Long> conversationIds) {
+        if (conversationIds == null || conversationIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<ChatMessageCountRow> rows = this.mapper.selectMessageCountGrouped(conversationIds);
+        Map<Long, Long> counts = new HashMap<>();
+        for (ChatMessageCountRow row : rows) {
+            if (row.getConversationId() != null && row.getMessageCount() != null) {
+                counts.put(row.getConversationId(), row.getMessageCount());
+            }
+        }
+        return counts;
     }
 
     private ChatMessageVO toVO(ChatMessage message) {

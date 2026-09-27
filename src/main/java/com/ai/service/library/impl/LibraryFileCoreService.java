@@ -7,6 +7,7 @@ import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
 import com.ai.mapper.library.LibraryFileMapper;
 import com.ai.model.dto.library.LibraryIdsRequest;
+import com.ai.model.dto.library.LibraryUsageAggRow;
 import com.ai.model.entity.library.LibraryFile;
 import com.ai.model.vo.library.LibraryFileVO;
 import com.ai.model.vo.library.LibraryRecycleFileVO;
@@ -73,6 +74,9 @@ public class LibraryFileCoreService {
     @Resource
     private LibraryFileMapper libraryFileMapper;
 
+    @Resource
+    private LibrarySummaryCache summaryCache;
+
     public LibraryFile requireOwned(Long fileId, Long userId) {
         if (fileId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -99,6 +103,8 @@ public class LibraryFileCoreService {
         patch.setLastOpenedAt(LocalDateTime.now());
         patch.setOpenCount((file.getOpenCount() == null ? 0 : file.getOpenCount()) + 1);
         libraryFileMapper.updateByQuery(patch, QueryWrapper.create().eq("id", file.getId()));
+        // lastOpenedAt 参与 summary 的最近文件展示，需一并失效 summary 缓存
+        summaryCache.evict(file.getUserId());
     }
 
     public LibraryFile insertFile(Long userId, String fileName, String ext, String category,
@@ -134,10 +140,13 @@ public class LibraryFileCoreService {
         return AI_TEXT_EXTS.contains(ext) || AI_DOC_EXTS.contains(ext) || IMAGE_EXTS.contains(ext);
     }
 
+    /**
+     * 当前已用容量（active + DONE）：SQL 聚合，不读 summary 缓存。
+     * 供 upload-init 配额校验使用，必须即时，避免陈旧缓存导致超额。
+     */
     public long usedBytes(Long userId) {
-        return listActiveDone(userId).stream()
-                .mapToLong(f -> f.getSize() == null ? 0L : f.getSize())
-                .sum();
+        LibraryUsageAggRow agg = libraryFileMapper.selectUsageAgg(userId);
+        return agg == null || agg.getUsedBytes() == null ? 0L : agg.getUsedBytes();
     }
 
     public List<LibraryFile> listActiveDone(Long userId) {

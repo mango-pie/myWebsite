@@ -4,7 +4,10 @@ import com.ai.config.ConditionalOnModule;
 
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
+import com.ai.model.dto.library.LibraryCollectionCreateRequest;
+import com.ai.model.dto.library.LibraryFileCollectionRemoveRequest;
 import com.ai.model.dto.library.LibraryFileQueryRequest;
+import com.ai.model.dto.library.LibraryFileRenameRequest;
 import com.ai.model.dto.library.LibraryFileTagsRequest;
 import com.ai.model.dto.library.LibraryFilesCollectionsRequest;
 import com.ai.model.dto.library.LibraryIdsRequest;
@@ -24,6 +27,7 @@ import com.ai.service.library.LibraryService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -86,6 +90,57 @@ public class LibraryController {
     public BaseResponse<List<LibraryCollectionVO>> listCollections(HttpServletRequest request) {
         User loginUser = userService.getLoginUser(request);
         return ResultUtils.success(libraryService.listCollections(loginUser.getId()));
+    }
+
+    @PostMapping("/collections")
+    public BaseResponse<LibraryCollectionVO> createCollection(@RequestBody LibraryCollectionCreateRequest createRequest,
+                                                              HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(libraryService.createCollection(createRequest, loginUser.getId()));
+    }
+
+    @PutMapping("/collections/{id}")
+    public BaseResponse<Boolean> updateCollection(@PathVariable Long id,
+                                                  @RequestBody LibraryCollectionCreateRequest updateRequest,
+                                                  HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(libraryService.updateCollection(id, updateRequest, loginUser.getId()));
+    }
+
+    @DeleteMapping("/collections/{id}")
+    public BaseResponse<Boolean> deleteCollection(@PathVariable Long id, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(libraryService.deleteCollection(id, loginUser.getId()));
+    }
+
+    @PutMapping("/tags/{id}")
+    public BaseResponse<LibraryTagVO> updateTag(@PathVariable Long id,
+                                                @RequestBody LibraryTagCreateRequest updateRequest,
+                                                HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(libraryService.updateTag(id, updateRequest, loginUser.getId()));
+    }
+
+    @DeleteMapping("/tags/{id}")
+    public BaseResponse<Boolean> deleteTag(@PathVariable Long id, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(libraryService.deleteTag(id, loginUser.getId()));
+    }
+
+    @PostMapping("/files/{id}/collections/remove")
+    public BaseResponse<Boolean> removeFileCollection(@PathVariable Long id,
+                                                      @RequestBody LibraryFileCollectionRemoveRequest removeRequest,
+                                                      HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(libraryService.removeFileCollection(id, removeRequest, loginUser.getId()));
+    }
+
+    @PostMapping("/files/{id}/rename")
+    public BaseResponse<LibraryFileVO> renameFile(@PathVariable Long id,
+                                                  @RequestBody LibraryFileRenameRequest renameRequest,
+                                                  HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(libraryService.renameFile(id, renameRequest, loginUser.getId()));
     }
 
     @PostMapping("/files/upload-init")

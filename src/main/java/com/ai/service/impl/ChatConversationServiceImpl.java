@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -70,8 +71,12 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
         if (StrUtil.isNotBlank(configId)) {
             queryWrapper.eq(ChatConversation::getConfigId, configId.trim());
         }
-        return this.list(queryWrapper).stream()
-                .map(conv -> toVO(conv, true))
+        List<ChatConversation> conversations = this.list(queryWrapper);
+        // 一次 GROUP BY 批量取回全部会话的消息计数，消除逐会话 COUNT 的 N+1
+        Map<Long, Long> messageCounts = chatMessageService.countByConversations(
+                conversations.stream().map(ChatConversation::getId).collect(Collectors.toList()));
+        return conversations.stream()
+                .map(conv -> toVO(conv, messageCounts.getOrDefault(conv.getId(), 0L)))
                 .collect(Collectors.toList());
     }
 
@@ -180,12 +185,24 @@ public class ChatConversationServiceImpl extends ServiceImpl<ChatConversationMap
     }
 
     private ChatConversationVO toVO(ChatConversation conversation, boolean withCount) {
-        ChatConversationVO vo = new ChatConversationVO();
-        BeanUtil.copyProperties(conversation, vo);
-        vo.setIsDefault(conversation.getIsDefault() != null && conversation.getIsDefault() == 1);
+        ChatConversationVO vo = toVO(conversation);
         if (withCount) {
             vo.setMessageCount(chatMessageService.countByConversation(conversation.getId()));
         }
+        return vo;
+    }
+
+    /** 会话列表专用：消息计数由 countByConversations 批量预取，避免逐会话 COUNT 的 N+1。 */
+    private ChatConversationVO toVO(ChatConversation conversation, Long messageCount) {
+        ChatConversationVO vo = toVO(conversation);
+        vo.setMessageCount(messageCount);
+        return vo;
+    }
+
+    private ChatConversationVO toVO(ChatConversation conversation) {
+        ChatConversationVO vo = new ChatConversationVO();
+        BeanUtil.copyProperties(conversation, vo);
+        vo.setIsDefault(conversation.getIsDefault() != null && conversation.getIsDefault() == 1);
         return vo;
     }
 

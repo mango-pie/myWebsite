@@ -43,6 +43,9 @@ public class LibraryRecycleService {
     private LibraryProperties properties;
 
     @Resource
+    private LibrarySummaryCache summaryCache;
+
+    @Resource
     private LibraryVectorService vectorService;
 
     @Resource
@@ -53,21 +56,27 @@ public class LibraryRecycleService {
         LibraryFile patch = new LibraryFile();
         patch.setDeletedAt(LocalDate.now());
         patch.setDeleteTime(LocalDateTime.now());
-        return libraryFileMapper.updateByQuery(patch, QueryWrapper.create()
+        boolean updated = libraryFileMapper.updateByQuery(patch, QueryWrapper.create()
                 .eq("user_id", userId)
                 .isNull("deleted_at")
                 .in("id", ids)) > 0;
+        // 移入回收站后 active 容量减少，失效 summary 缓存
+        summaryCache.evict(userId);
+        return updated;
     }
 
     public boolean restore(LibraryIdsRequest request, Long userId) {
         List<Long> ids = core.requireIds(request);
-        return UpdateChain.of(LibraryFile.class)
+        boolean updated = UpdateChain.of(LibraryFile.class)
                 .set(LibraryFile::getDeletedAt, null)
                 .set(LibraryFile::getDeleteTime, null)
                 .where(LibraryFile::getUserId).eq(userId)
                 .and(LibraryFile::getDeletedAt).isNotNull()
                 .and(LibraryFile::getId).in(ids)
                 .update();
+        // 还原后 active 容量增加，失效 summary 缓存
+        summaryCache.evict(userId);
+        return updated;
     }
 
     public boolean purge(LibraryIdsRequest request, Long userId) {
@@ -108,6 +117,8 @@ public class LibraryRecycleService {
                     libraryFileMapper.deleteByQuery(QueryWrapper.create()
                             .eq("user_id", userId)
                             .in("id", ids)));
+            // 彻底删除只作用于回收站行（本就不计入 summary），仍按宁多勿漏失效缓存
+            summaryCache.evict(userId);
             // 提交后再清外部资源；每项独立 try，一项失败不影响其余
             try {
                 removeObjectsIfUnreferenced(userId, userRows);
