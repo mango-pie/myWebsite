@@ -20,8 +20,6 @@ public class AppModuleProperties {
     private boolean study = true;
     private boolean diary = true;
     private boolean worklog = true;
-    private boolean tts = true;
-    private boolean appLab = true;
     private boolean library = true;
     private boolean pet = true;
 
@@ -38,8 +36,6 @@ public class AppModuleProperties {
             case "study" -> study;
             case "diary" -> diary;
             case "worklog" -> worklog;
-            case "tts" -> tts;
-            case "app", "app-lab", "applab" -> appLab;
             case "library" -> library;
             case "pet" -> pet;
             default -> false;

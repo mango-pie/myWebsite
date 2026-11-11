@@ -98,13 +98,6 @@ management:
 
 langchain4j:
   open-ai:
-    streaming-chat-model:
-      base-url: ${CODEGEN_API_BASE_URL:http://127.0.0.1:14514/v1}
-      api-key: ${CODEGEN_API_KEY:}
-      model-name: ${CODEGEN_MODEL_NAME:deepseek-v4-flash}
-      max-tokens: 8192
-      log-requests: true
-      log-responses: true
     chat-model:
       base-url: ${DASHSCOPE_API_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
       api-key: ${DASHSCOPE_API_KEY:}
@@ -126,6 +119,9 @@ chat:
     max-steps: 8
     history-limit: 20
     l2-enabled: false
+    # L2 确认流（二期）：确认令牌有效期与最大挂起数（一次性消费，过期由内存 TTL 清理）
+    l2-confirm-ttl-seconds: 300
+    l2-confirm-max-pending: 1000
   attachment-cache-ttl-minutes: 120
   image-caption:
     enabled: true
@@ -152,22 +148,6 @@ upload:
   access-path: /uploads/**
   base-url: ${UPLOAD_BASE_URL:http://localhost:8123/api}
   max-file-size: 20
-
-gpt-sovits:
-  base-url: ${GPT_SOVITS_BASE_URL:http://127.0.0.1:9880}
-  connect-timeout-ms: 5000
-  read-timeout-ms: 120000
-  ref-audio:
-    upload-dir: ${GPT_SOVITS_REF_DIR:./tmp/tts-ref/}
-    max-size-mb: 10
-    allowed-ext: wav,mp3
-  seed-voice:
-    enabled: ${GPT_SOVITS_SEED_ENABLED:false}
-    name: 达妮娅
-    ref-audio-path: ${GPT_SOVITS_SEED_REF_PATH:}
-    prompt-text: ${GPT_SOVITS_SEED_PROMPT:}
-    prompt-lang: zh
-    text-lang: zh
 
 astrbot:
   base-url: ${ASTRBOT_BASE_URL:http://127.0.0.1:6185}
@@ -230,9 +210,6 @@ app:
       - pattern: /chat/chat                 # 智能体对话 SSE（多步工具调用 + LLM）
         limit: 20
         window-seconds: 60
-      - pattern: /chat/attachment           # 图片转述（视觉模型）
-        limit: 20
-        window-seconds: 60
       - pattern: /kb/chat*                  # 知识库问答（RAG 检索 + AI，含 stream）
         limit: 20
         window-seconds: 60
@@ -248,8 +225,6 @@ app:
     study: true
     diary: true
     worklog: true
-    tts: true
-    app-lab: true
     library: true
     pet: true
   library:
@@ -263,10 +238,6 @@ app:
     user-id: ${AGENT_USER_ID:}
     # 令牌仅对这些路径前缀生效（逗号分隔）；留空=全站生效，生产建议收敛
     path-prefixes: ${AGENT_PATH_PREFIXES:}
-  deploy:
-    host: ${APP_DEPLOY_HOST:http://localhost}
-    code-output-dir: ${APP_CODE_OUTPUT_DIR:}
-    code-deploy-dir: ${APP_CODE_DEPLOY_DIR:}
 
 # 全站设置敏感字段加密主密钥（勿写入 DB；生产务必通过环境变量覆盖）
 site-setting:

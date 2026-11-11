@@ -32,12 +32,8 @@ class OnModuleCondition extends SpringBootCondition {
         Environment env = context.getEnvironment();
         for (String module : modules) {
             String key = AppModuleProperties.normalizeKey(module);
-            // YAML / CLI use kebab-case; appLab field binds as app-lab
             String propertyName = "app.modules." + key;
             Boolean enabled = env.getProperty(propertyName, Boolean.class);
-            if (enabled == null && ("app".equals(key) || "applab".equals(key))) {
-                enabled = env.getProperty("app.modules.app-lab", Boolean.class);
-            }
             if (enabled == null) {
                 enabled = matchIfMissing;
             }

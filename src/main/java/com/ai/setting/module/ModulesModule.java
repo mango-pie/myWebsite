@@ -41,12 +41,9 @@ public class ModulesModule implements SettingModule {
                 flag("blog", "随笔", "关闭后隐藏博客入口，相关接口在重启后不再注册"),
                 flag("knowledge", "知识库", "关闭后隐藏知识库与精读工作台"),
                 flag("reading", "精读任务", "关闭后停止精读异步任务队列"),
-                flag("chat", "对话", "关闭后隐藏对话入口"),
                 flag("study", "学习", "关闭后隐藏学习工作台"),
                 flag("diary", "日记", "关闭后隐藏日记入口"),
                 flag("worklog", "工作日志", "关闭后隐藏工作日志云端同步"),
-                flag("tts", "语音合成", "关闭后隐藏 TTS 相关能力"),
-                flag("app-lab", "实验室", "关闭后隐藏应用工坊 / 代码生成实验室"),
                 flag("library", "资料库", "关闭后隐藏资料库（资料储藏室）入口，相关接口在重启后不再注册"),
                 flag("pet", "桌宠设备", "关闭后隐藏桌宠设备绑定入口")
         );

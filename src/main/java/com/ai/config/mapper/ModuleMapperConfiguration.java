@@ -54,21 +54,9 @@ public class ModuleMapperConfiguration {
     }
 
     @Configuration
-    @ConditionalOnModule("tts")
-    @MapperScan("com.ai.mapper.tts")
-    static class TtsMapperConfig {
-    }
-
-    @Configuration
     @ConditionalOnModule("ops")
     @MapperScan("com.ai.mapper.ops")
     static class OpsMapperConfig {
-    }
-
-    @Configuration
-    @ConditionalOnModule("app-lab")
-    @MapperScan("com.ai.mapper.app")
-    static class AppLabMapperConfig {
     }
 
     @Configuration

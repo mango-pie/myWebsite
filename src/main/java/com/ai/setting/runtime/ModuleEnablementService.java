@@ -40,12 +40,9 @@ public class ModuleEnablementService {
         map.put("blog", resolve("blog", overrides, appModuleProperties.isBlog()));
         map.put("knowledge", resolve("knowledge", overrides, appModuleProperties.isKnowledge()));
         map.put("reading", resolve("reading", overrides, appModuleProperties.isReading()));
-        map.put("chat", resolve("chat", overrides, appModuleProperties.isChat()));
         map.put("study", resolve("study", overrides, appModuleProperties.isStudy()));
         map.put("diary", resolve("diary", overrides, appModuleProperties.isDiary()));
         map.put("worklog", resolve("worklog", overrides, appModuleProperties.isWorklog()));
-        map.put("tts", resolve("tts", overrides, appModuleProperties.isTts()));
-        map.put("app-lab", resolve("app-lab", overrides, appModuleProperties.isAppLab()));
         map.put("library", resolve("library", overrides, appModuleProperties.isLibrary()));
         map.put("pet", resolve("pet", overrides, appModuleProperties.isPet()));
         return map;

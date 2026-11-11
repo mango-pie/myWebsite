@@ -27,36 +27,13 @@ upload:
   path: /app/uploads/
   base-url: ${UPLOAD_BASE_URL:https://your-domain.com/api}
 
-gpt-sovits:
-  ref-audio:
-    upload-dir: /app/tts-ref/
-  seed-voice:
-    enabled: false
-
 app:
   redis:
     # 2GB 机器不跑 Redis：显式关闭（会话本就 store-type none，Redis 仅缓存）
     mode: off
-  modules:
-    tts: false
-    app-lab: false
-  deploy:
-    host: ${APP_DEPLOY_HOST:https://your-domain.com}
-    code-output-dir: /opt/ai-backend/tmp/code_output
-    code-deploy-dir: /opt/ai-backend/tmp/code_deploy
 
 cors:
   allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:${APP_DEPLOY_HOST:http://localhost}}
-
-langchain4j:
-  open-ai:
-    streaming-chat-model:
-      base-url: ${CODEGEN_API_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
-      api-key: ${CODEGEN_API_KEY}
-      model-name: ${CODEGEN_MODEL_NAME:deepseek-v3}
-      # 生产默认关闭 LLM 请求/响应日志（防敏感信息落盘），本地 dev 在 application-local.yml 显式开启
-      log-requests: false
-      log-responses: false
 
 knife4j:
   enable: false

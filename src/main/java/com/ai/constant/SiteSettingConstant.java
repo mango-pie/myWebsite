@@ -19,13 +19,11 @@ public interface SiteSettingConstant {
     /** 业务模块开关，key 与 ModuleEnablementService.snapshot() 一致 */
     String MODULE_MODULES = "modules";
     String MODULE_CHAT = "chat";
-    String MODULE_TTS = "tts";
     String MODULE_KNOWLEDGE = "knowledge";
     String MODULE_READING = "reading";
     String MODULE_BLOG = "blog";
     String MODULE_STUDY = "study";
     String MODULE_DIARY = "diary";
-    String MODULE_APP = "app";
     String MODULE_OPS = "ops";
 
     String TYPE_STRING = "string";
