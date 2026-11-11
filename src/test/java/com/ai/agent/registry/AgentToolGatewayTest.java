@@ -34,6 +34,10 @@ class AgentToolGatewayTest {
 
         ReflectionTestUtils.setField(gateway, "agentToolRegistry", registry);
         ReflectionTestUtils.setField(gateway, "chatRuntimeSettings", chatRuntimeSettings);
+        ReflectionTestUtils.setField(gateway, "pendingConfirmStore",
+                new com.ai.agent.confirm.PendingConfirmStore(new com.ai.agent.config.ChatAgentProperties()));
+        ReflectionTestUtils.setField(gateway, "chatAgentAuditService",
+                mock(com.ai.service.ChatAgentAuditService.class));
     }
 
     @Test

@@ -24,7 +24,8 @@ import java.util.Map;
 import static com.ai.agent.registry.AgentToolRegistryBuilder.*;
 
 /**
- * 日记域 Agent 工具：按日期查询（L0）与保存/更新指定日期日记（L1，按日期幂等覆盖）。
+ * 日记域 Agent 工具：按日期查询（L0）、保存/更新指定日期日记（L1，按日期幂等覆盖）
+ * 与删除指定日记（L2，经确认流后执行）。
  * 写操作成功后附带 refresh UI 动作，通知前端刷新日记页。
  * 仅在 chat 与 diary 模块同时开启时注册。
  */
@@ -58,6 +59,15 @@ public class DiaryAgentToolModule extends AgentToolModule {
                         .addProperty("status", integerProp("0 草稿 1 完成"))
                         .build(),
                 this::saveDiaryEntry);
+
+        // L2 高风险删除：网关会挂起待确认，用户确认后原参数重放执行（设计文档 §8.3）
+        registry.l2("delete_diary_entry", "删除指定日记（需用户确认后执行）",
+                objectSchema()
+                        .addProperty("id", integerProp("日记 id"))
+                        .required("id")
+                        .build(),
+                this::summarizeDeleteEntry,
+                this::deleteDiaryEntry);
     }
 
     private AgentToolResult getDiaryByDate(AgentToolContext ctx, String args) {
@@ -95,6 +105,27 @@ public class DiaryAgentToolModule extends AgentToolModule {
                 .module("diary_day")
                 .build();
         return AgentToolResult.ok(mapOf("id", id, "date", date.toString()), uiAction);
+    }
+
+    private AgentToolResult deleteDiaryEntry(AgentToolContext ctx, String args) {
+        JSONObject json = parseArgs(args);
+        Long id = json.getLong("id");
+        if (id == null || id <= 0) {
+            return AgentToolResult.fail("id 不能为空");
+        }
+        // deleteDiaryEntry 内部校验日记归属，非本人/不存在时抛业务异常，由网关收敛为 fail
+        diaryEntryService.deleteDiaryEntry(id, ctx.getUserId());
+        AgentUiAction uiAction = AgentUiAction.builder()
+                .type("refresh")
+                .module("diary_day")
+                .build();
+        return AgentToolResult.ok(mapOf("diaryId", id, "deleted", true), uiAction);
+    }
+
+    /** 确认摘要：日记服务无按 id 查询，固定回退为日记 id 展示。 */
+    private String summarizeDeleteEntry(AgentToolContext ctx, String args) {
+        Long id = parseArgs(args).getLong("id");
+        return "删除日记（id=" + id + "）";
     }
 
     private LocalDate parseDate(String raw) {

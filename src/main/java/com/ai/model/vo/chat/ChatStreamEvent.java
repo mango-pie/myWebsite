@@ -14,6 +14,8 @@ import java.util.Map;
  *   <li>chunk —— 一段回复文本（agent 模式为最终文本一次性下发）</li>
  *   <li>segment_plan —— 分段计划：正文按 segments 拆分、按 delays 毫秒间隔模拟打字</li>
  *   <li>tool_call / tool_result —— agent 模式工具调用前后的过程事件（含步骤号）</li>
+ *   <li>confirm_required —— agent 模式 L2 工具待用户确认：携带 confirmToken / summary /
+ *       expiresInSec，前端展示确认卡片，用户确认或取消后走确认续跑（设计文档 §7.2 / §8.3）</li>
  *   <li>error / done —— 出错与正常收尾，前端收到 done 后关闭流</li>
  * </ul>
  * type 区分来源（agent / 普通），供前端区分渲染样式。
@@ -28,6 +30,7 @@ public class ChatStreamEvent implements Serializable {
     public static final String EVENT_DONE = "done";
     public static final String EVENT_TOOL_CALL = "tool_call";
     public static final String EVENT_TOOL_RESULT = "tool_result";
+    public static final String EVENT_CONFIRM_REQUIRED = "confirm_required";
     public static final String EVENT_ERROR = "error";
 
     private String event;
@@ -53,6 +56,15 @@ public class ChatStreamEvent implements Serializable {
     private AgentUiAction uiAction;
 
     private String message;
+
+    /** confirm_required 专用：L2 待确认令牌，用户确认续跑时原样回传 */
+    private String confirmToken;
+
+    /** confirm_required 专用：待确认操作的人类可读摘要（如「将发布文章《xx》」） */
+    private String summary;
+
+    /** confirm_required 专用：确认令牌剩余有效期（秒），超时未确认需重新发起 */
+    private Integer expiresInSec;
 
     public static ChatStreamEvent chunk(String text, String type) {
         ChatStreamEvent event = new ChatStreamEvent();
@@ -97,6 +109,18 @@ public class ChatStreamEvent implements Serializable {
         event.setData(data);
         event.setUiAction(uiAction);
         event.setStep(step);
+        event.setType(type);
+        return event;
+    }
+
+    public static ChatStreamEvent confirmRequired(String confirmToken, String tool, String summary,
+                                                  int expiresInSec, String type) {
+        ChatStreamEvent event = new ChatStreamEvent();
+        event.setEvent(EVENT_CONFIRM_REQUIRED);
+        event.setConfirmToken(confirmToken);
+        event.setTool(tool);
+        event.setSummary(summary);
+        event.setExpiresInSec(expiresInSec);
         event.setType(type);
         return event;
     }

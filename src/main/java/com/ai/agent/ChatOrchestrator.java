@@ -40,7 +40,8 @@ public class ChatOrchestrator {
             if (!chatRuntimeSettings.agentEnabled()) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "Agent 模式暂未开放");
             }
-            return chatAgentFacade.chat(conversationId, configId, message, segments, request);
+            return chatAgentFacade.chat(conversationId, configId, message, segments, request,
+                    chatRequest.getConfirmToken());
         }
         return aiChatFacade.chat(conversationId, configId, message, segments, request);
     }

@@ -20,6 +20,15 @@ public class ChatAgentProperties {
 
     private boolean l2Enabled = false;
 
+    /**
+     * L2 待确认令牌有效期（秒）：confirm_required 发出后用户须在该窗口内完成确认/取消
+     * （设计文档 §8.3 建议 5 分钟，一次性消费）。
+     */
+    private int l2ConfirmTtlSeconds = 300;
+
+    /** L2 待确认令牌最大同时挂起数量：内存保护上限，超出后最旧挂起被逐出。 */
+    private int l2ConfirmMaxPending = 1000;
+
     private String systemPrompt = """
             你是本站智能助手，可以通过工具帮用户管理博客、学习待办、日记。
             规则：

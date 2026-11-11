@@ -5,9 +5,7 @@ import com.ai.config.ChatImageCaptionProperties;
 import com.ai.service.IntegrationCredentialsService;
 import com.ai.setting.runtime.ChatRuntimeSettings;
 import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,11 +37,6 @@ public class IntegrationOpenAiModelFactory {
     @Value("${langchain4j.open-ai.agent-chat-model.timeout-seconds:60}")
     private int agentTimeoutSeconds;
 
-    @Value("${langchain4j.open-ai.streaming-chat-model.model-name:deepseek-v4-flash}")
-    private String codegenModelName;
-    @Value("${langchain4j.open-ai.streaming-chat-model.max-tokens:8192}")
-    private int codegenMaxTokens;
-
     public ChatModel agentChatModel() {
         return OpenAiChatModel.builder()
                 .baseUrl(trim(credentials.agentBaseUrl()))
@@ -70,17 +63,6 @@ public class IntegrationOpenAiModelFactory {
                 .apiKey(StrUtil.blankToDefault(credentials.imageCaptionApiKey(), "missing-key"))
                 .modelName(modelName)
                 .timeout(Duration.ofSeconds(Math.max(10, timeoutSeconds)))
-                .logRequests(false)
-                .logResponses(false)
-                .build();
-    }
-
-    public StreamingChatModel codegenStreamingChatModel() {
-        return OpenAiStreamingChatModel.builder()
-                .baseUrl(trim(credentials.codegenBaseUrl()))
-                .apiKey(StrUtil.blankToDefault(credentials.codegenApiKey(), "missing-key"))
-                .modelName(codegenModelName)
-                .maxTokens(codegenMaxTokens)
                 .logRequests(false)
                 .logResponses(false)
                 .build();

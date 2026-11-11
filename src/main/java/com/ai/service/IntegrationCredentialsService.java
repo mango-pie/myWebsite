@@ -33,31 +33,13 @@ public interface IntegrationCredentialsService {
 
     String segmentationApiKey();
 
-    String codegenBaseUrl();
-
-    String codegenApiKey();
-
     String astrBotBaseUrl();
 
     String astrBotApiKey();
 
-    String ttsBaseUrl();
-
-    String ttsRefAudioUploadDir();
-
-    String ttsSeedRefAudioPath();
-
-    String ttsSeedPromptText();
-
     String uploadPath();
 
     String uploadBaseUrl();
-
-    String appDeployHost();
-
-    String appDeployCodeOutputDir();
-
-    String appDeployCodeDeployDir();
 
     boolean minioEnabled();
 

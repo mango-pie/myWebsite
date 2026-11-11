@@ -37,18 +37,35 @@ public final class AgentToolRegistryBuilder {
 
     public AgentToolRegistryBuilder l2(String name, String description, JsonObjectSchema parameters,
                                        BiFunction<AgentToolContext, String, AgentToolResult> executor) {
-        return register(name, description, AgentToolLevel.L2, parameters, executor);
+        return register(name, description, AgentToolLevel.L2, parameters, null, executor);
+    }
+
+    /**
+     * 注册带确认摘要的 L2 工具：summarizer 在挂起待确认时生成人类可读的操作摘要
+     * （confirm_required 事件的 summary 字段，设计文档 §8.3）。
+     */
+    public AgentToolRegistryBuilder l2(String name, String description, JsonObjectSchema parameters,
+                                       BiFunction<AgentToolContext, String, String> summarizer,
+                                       BiFunction<AgentToolContext, String, AgentToolResult> executor) {
+        return register(name, description, AgentToolLevel.L2, parameters, summarizer, executor);
     }
 
     public AgentToolRegistryBuilder register(String name, String description, AgentToolLevel level,
                                              JsonObjectSchema parameters,
                                              BiFunction<AgentToolContext, String, AgentToolResult> executor) {
+        return register(name, description, level, parameters, null, executor);
+    }
+
+    private AgentToolRegistryBuilder register(String name, String description, AgentToolLevel level,
+                                              JsonObjectSchema parameters,
+                                              BiFunction<AgentToolContext, String, String> summarizer,
+                                              BiFunction<AgentToolContext, String, AgentToolResult> executor) {
         ToolSpecification spec = ToolSpecification.builder()
                 .name(name)
                 .description(description)
                 .parameters(parameters)
                 .build();
-        definitions.add(new AgentToolDefinition(name, description, level, module, spec, executor));
+        definitions.add(new AgentToolDefinition(name, description, level, module, spec, executor, summarizer));
         return this;
     }
 

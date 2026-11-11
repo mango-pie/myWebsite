@@ -7,7 +7,6 @@ import com.ai.model.vo.setting.IntegrationTestResultVO;
 import com.ai.service.AstrBotChatService;
 import com.ai.service.IntegrationConnectivityService;
 import com.ai.service.IntegrationCredentialsService;
-import com.ai.service.TtsProxyService;
 import com.ai.service.knowledge.KnowledgeVectorStoreService;
 import io.minio.BucketExistsArgs;
 import io.minio.MinioClient;
@@ -28,14 +27,14 @@ import java.util.List;
 
 @Service
 /**
- * 平台集成连通性探测。对 chat / tts / knowledge 等可选模块使用 {@link ObjectProvider#getIfAvailable()}，
+ * 平台集成连通性探测。对 chat / knowledge 等可选模块使用 {@link ObjectProvider#getIfAvailable()}，
  * 关模块时跳过探测、不 NPE。经评估维持 ObjectProvider 为终态，不另建 IntegrationProbe SPI
  *（单体内编译期类型引用可接受；运行时已安全；SPI 收益不足以覆盖引入成本）。
  */
 public class IntegrationConnectivityServiceImpl implements IntegrationConnectivityService {
 
     private static final List<String> ALL_TARGETS = List.of(
-            "redis", "vector", "knowledge_ai", "agent", "codegen", "jina", "astrbot", "tts", "minio"
+            "redis", "vector", "knowledge_ai", "jina", "astrbot", "minio"
     );
 
     @Resource
@@ -44,9 +43,6 @@ public class IntegrationConnectivityServiceImpl implements IntegrationConnectivi
     /** chat 关则 Bean 不存在；探测走 getIfAvailable，终态约定见类注释。 */
     @Resource
     private ObjectProvider<AstrBotChatService> astrBotChatServiceProvider;
-    /** tts 关则 Bean 不存在；同上。 */
-    @Resource
-    private ObjectProvider<TtsProxyService> ttsProxyServiceProvider;
     /** knowledge 关则 Bean 不存在；同上。 */
     @Resource
     private ObjectProvider<KnowledgeVectorStoreService> knowledgeVectorStoreServiceProvider;
@@ -96,10 +92,6 @@ public class IntegrationConnectivityServiceImpl implements IntegrationConnectivi
                 case "vector" -> testVector();
                 case "knowledge_ai" -> testOpenAiCompat(
                         t, credentials.knowledgeAiBaseUrl(), credentials.knowledgeAiApiKey(), "/models");
-                case "agent" -> testOpenAiCompat(
-                        t, credentials.agentBaseUrl(), credentials.agentApiKey(), "/models");
-                case "codegen" -> testOpenAiCompat(
-                        t, credentials.codegenBaseUrl(), credentials.codegenApiKey(), "/models");
                 case "jina" -> testJina();
                 case "astrbot" -> {
                     AstrBotChatService astrBotChatService = astrBotChatServiceProvider.getIfAvailable();
@@ -108,14 +100,6 @@ public class IntegrationConnectivityServiceImpl implements IntegrationConnectivi
                     }
                     yield result(t, astrBotChatService.isAvailable(), start,
                             astrBotChatService.isAvailable() ? "AstrBot 可达" : "AstrBot 不可达");
-                }
-                case "tts" -> {
-                    TtsProxyService ttsProxyService = ttsProxyServiceProvider.getIfAvailable();
-                    if (ttsProxyService == null) {
-                        yield result(t, false, start, "TTS 模块未启用，已跳过");
-                    }
-                    yield result(t, ttsProxyService.isAvailable(), start,
-                            ttsProxyService.isAvailable() ? "GPT-SoVITS 可达" : "GPT-SoVITS 不可达");
                 }
                 case "minio" -> testMinio();
                 default -> throw new BusinessException(ErrorCode.PARAMS_ERROR,

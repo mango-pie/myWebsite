@@ -5,12 +5,17 @@ import com.ai.config.ConditionalOnModule;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.agent.config.ChatAgentProperties;
+import com.ai.agent.confirm.ConfirmRequiredException;
 import com.ai.agent.model.AgentToolContext;
+import com.ai.agent.model.AgentToolLevel;
 import com.ai.agent.model.AgentToolResult;
+import com.ai.agent.registry.AgentToolDefinition;
 import com.ai.agent.registry.AgentToolGateway;
 import com.ai.agent.registry.AgentToolRegistry;
+import com.ai.agent.registry.ConfirmedExecution;
 import com.ai.agent.support.ChatConversationSupport;
 import com.ai.constant.AiUsageSceneConstant;
+import com.ai.exception.BusinessException;
 import com.ai.model.dto.chat.ChatMessageSegment;
 import com.ai.model.dto.ops.AiUsageRecord;
 import com.ai.model.entity.ChatConversation;
@@ -57,6 +62,8 @@ import java.util.Map;
  * <p>每轮将系统提示词、最近会话历史和全部工具规格发给模型；模型返回工具调用时，
  * 交给 {@link AgentToolGateway} 执行，并把 tool_call / tool_result 以 SSE 事件推给前端，
  * 将工具结果回填到消息列表继续下一轮，直到模型产出最终文本或达到 agentMaxSteps 步数上限。
+ * L2 工具触发时推送 confirm_required 暂停本轮（设计文档 §8.3），用户确认后带
+ * confirmToken 重新进入，走确认续跑（跳过 LLM）执行挂起操作。
  * 用户消息、最终回复与错误都会落库，每次模型调用记录 AI 用量。
  */
 @ConditionalOnModule("chat")
@@ -103,9 +110,13 @@ public class ChatAgentFacade {
     /**
      * Agent 模式入口：校验登录与纯文本输入，解析/创建会话并落库用户消息，
      * 然后在 boundedElastic 线程上启动 Agent 循环，以 SSE 流返回过程事件与最终回复。
+     *
+     * <p>confirmToken 非空时为「确认续跑」（设计文档 §8.3）：跳过 LLM，
+     * 直接消费挂起的 L2 操作并执行，推送 tool_call / tool_result / chunk / done。
      */
     public Flux<ChatStreamEvent> chat(Long conversationId, String configId, String message,
-                                      List<ChatMessageSegment> segments, HttpServletRequest request) {
+                                      List<ChatMessageSegment> segments, HttpServletRequest request,
+                                      String confirmToken) {
         User loginUser = userService.getLoginUser(request);
         if (loginUser == null) {
             throw new ServerErrorException("用户未登录", null);
@@ -113,9 +124,13 @@ public class ChatAgentFacade {
         if (segments != null && !segments.isEmpty()) {
             throw new ServerErrorException("Agent 模式暂不支持富消息段，请使用纯文本 message", null);
         }
-        ChatModel chatModel = resolveAgentChatModel();
-        if (chatModel == null) {
-            throw new ServerErrorException("Agent 模型未配置，请检查 chat.agent.enabled 与集成设置 / langchain4j.open-ai.agent-chat-model", null);
+        boolean confirmTurn = StrUtil.isNotBlank(confirmToken);
+        ChatModel chatModel = null;
+        if (!confirmTurn) {
+            chatModel = resolveAgentChatModel();
+            if (chatModel == null) {
+                throw new ServerErrorException("Agent 模型未配置，请检查 chat.agent.enabled 与集成设置 / langchain4j.open-ai.agent-chat-model", null);
+            }
         }
 
         ChatConversation conversation = chatConversationSupport.resolveConversation(
@@ -142,9 +157,14 @@ public class ChatAgentFacade {
                 .request(request)
                 .build();
 
+        if (confirmTurn) {
+            return Flux.<ChatStreamEvent>create(sink -> runConfirmTurn(
+                            sink, toolContext, confirmToken, effectiveConversationId, loginUser.getId()))
+                    .subscribeOn(Schedulers.boundedElastic());
+        }
         ChatModel modelForLoop = chatModel;
         return Flux.<ChatStreamEvent>create(sink -> runAgentLoop(
-                sink, toolContext, persistContent, effectiveConversationId, loginUser.getId(), modelForLoop))
+                        sink, toolContext, persistContent, effectiveConversationId, loginUser.getId(), modelForLoop))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
@@ -172,7 +192,7 @@ public class ChatAgentFacade {
                               String userMessage, Long conversationId, Long userId, ChatModel chatModel) {
         try {
             List<ChatMessage> messages = buildInitialMessages(conversationId, userId, userMessage);
-            List<ToolSpecification> toolSpecifications = agentToolRegistry.toolSpecifications();
+            List<ToolSpecification> toolSpecifications = buildToolSpecifications();
             int step = 0;
             String finalText = null;
 
@@ -202,8 +222,27 @@ public class ChatAgentFacade {
                         Map<String, Object> argsMap = parseToolArgs(toolRequest.arguments());
                         sink.next(ChatStreamEvent.toolCall(toolRequest.name(), argsMap, step, SSE_TYPE));
 
-                        AgentToolResult toolResult = agentToolGateway.execute(
-                                toolRequest.name(), toolRequest.arguments(), toolContext);
+                        AgentToolResult toolResult;
+                        try {
+                            toolResult = agentToolGateway.execute(
+                                    toolRequest.name(), toolRequest.arguments(), toolContext);
+                        } catch (ConfirmRequiredException confirmEx) {
+                            // L2 工具待用户确认（设计文档 §8.3）：推送 confirm_required 后暂停本轮，
+                            // 工具未执行；用户确认后带 confirmToken 重新进入，经确认续跑执行。
+                            sink.next(ChatStreamEvent.confirmRequired(
+                                    confirmEx.getConfirmToken(),
+                                    confirmEx.getToolName(),
+                                    confirmEx.getSummary(),
+                                    chatAgentProperties.getL2ConfirmTtlSeconds(),
+                                    SSE_TYPE
+                            ));
+                            persistAssistantMessage(conversationId, userId,
+                                    "已发起需确认的操作：" + confirmEx.getSummary()
+                                            + "，请在确认卡片中确认或取消，确认后我会继续执行。");
+                            sink.next(ChatStreamEvent.done(SSE_TYPE));
+                            sink.complete();
+                            return;
+                        }
                         sink.next(ChatStreamEvent.toolResult(
                                 toolRequest.name(),
                                 toolResult.isSuccess(),
@@ -227,14 +266,7 @@ public class ChatAgentFacade {
                 persistError(conversationId, userId, "Agent 步骤过多");
             } else if (StrUtil.isNotBlank(finalText)) {
                 sink.next(ChatStreamEvent.chunk(finalText, SSE_TYPE));
-                chatMessageService.addMessage(
-                        conversationId,
-                        userId,
-                        MessageTypeEnum.AI.getValue(),
-                        finalText.trim(),
-                        ChatMessageSourceEnum.AGENT.getValue()
-                );
-                chatConversationService.touchLastMessageAt(conversationId);
+                persistAssistantMessage(conversationId, userId, finalText.trim());
             }
             sink.next(ChatStreamEvent.done(SSE_TYPE));
             sink.complete();
@@ -245,6 +277,80 @@ public class ChatAgentFacade {
             sink.next(ChatStreamEvent.done(SSE_TYPE));
             sink.complete();
         }
+    }
+
+    /**
+     * 确认续跑（设计文档 §8.3）：用户确认后带 confirmToken 进入，跳过 LLM，
+     * 由网关一次性消费令牌并按挂起参数重放 L2 工具，随后依次推送
+     * tool_call / tool_result / chunk（确定性结果说明，不经过模型）/ done。
+     * 令牌无效 / 过期 / 非本人 / 会话不一致时以 error 事件收尾，不会执行任何工具。
+     */
+    private void runConfirmTurn(FluxSink<ChatStreamEvent> sink, AgentToolContext toolContext,
+                                String confirmToken, Long conversationId, Long userId) {
+        try {
+            ConfirmedExecution execution = agentToolGateway.executeConfirmed(confirmToken, toolContext);
+            int step = 1;
+            sink.next(ChatStreamEvent.toolCall(
+                    execution.toolName(), parseToolArgs(execution.toolArgs()), step, SSE_TYPE));
+            AgentToolResult result = execution.result();
+            sink.next(ChatStreamEvent.toolResult(
+                    execution.toolName(),
+                    result.isSuccess(),
+                    result.getData(),
+                    result.getUiAction(),
+                    step,
+                    SSE_TYPE
+            ));
+            String finalText = buildConfirmResultText(execution);
+            sink.next(ChatStreamEvent.chunk(finalText, SSE_TYPE));
+            persistAssistantMessage(conversationId, userId, finalText);
+            sink.next(ChatStreamEvent.done(SSE_TYPE));
+            sink.complete();
+        } catch (BusinessException e) {
+            log.warn("Agent confirm turn rejected: userId={}, message={}", userId, e.getMessage());
+            sink.next(ChatStreamEvent.error(e.getMessage(), SSE_TYPE));
+            persistError(conversationId, userId, e.getMessage());
+            sink.next(ChatStreamEvent.done(SSE_TYPE));
+            sink.complete();
+        } catch (Exception e) {
+            log.error("Agent confirm turn failed", e);
+            sink.next(ChatStreamEvent.error("确认执行失败: " + e.getMessage(), SSE_TYPE));
+            persistError(conversationId, userId, "确认执行失败: " + e.getMessage());
+            sink.next(ChatStreamEvent.done(SSE_TYPE));
+            sink.complete();
+        }
+    }
+
+    /** 确认续跑的最终回复：确定性文案，不经过模型（设计文档 §5.1「跳过 LLM」）。 */
+    private String buildConfirmResultText(ConfirmedExecution execution) {
+        if (execution.result().isSuccess()) {
+            return "已按你的确认执行：" + execution.summary() + "，操作完成。";
+        }
+        return "已按你的确认执行：" + execution.summary() + "，但执行失败：" + execution.result().getError();
+    }
+
+    /** 落库一条 AI 消息（AGENT 来源）并刷新会话最后消息时间。 */
+    private void persistAssistantMessage(Long conversationId, Long userId, String content) {
+        chatMessageService.addMessage(
+                conversationId,
+                userId,
+                MessageTypeEnum.AI.getValue(),
+                content,
+                ChatMessageSourceEnum.AGENT.getValue()
+        );
+        chatConversationService.touchLastMessageAt(conversationId);
+    }
+
+    /**
+     * 提供给模型的工具签名：L2 工具仅在确认流开启（agentL2Enabled）时暴露，
+     * 关闭时模型看不到 L2 工具，避免必然失败的调用（网关侧仍有兜底拦截）。
+     */
+    private List<ToolSpecification> buildToolSpecifications() {
+        boolean l2Enabled = chatRuntimeSettings.agentL2Enabled();
+        return agentToolRegistry.getDefinitions().stream()
+                .filter(definition -> l2Enabled || definition.level() != AgentToolLevel.L2)
+                .map(AgentToolDefinition::specification)
+                .toList();
     }
 
     /**

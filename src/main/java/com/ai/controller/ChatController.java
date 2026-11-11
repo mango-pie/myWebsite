@@ -6,17 +6,15 @@ import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONUtil;
 import com.ai.common.BaseResponse;
 import com.ai.common.ResultUtils;
-import com.ai.agent.ChatAgentConfigService;
 import com.ai.agent.ChatOrchestrator;
+import com.ai.agent.confirm.ChatAgentConfirmService;
 import com.ai.exception.BusinessException;
 import com.ai.exception.ErrorCode;
+import com.ai.model.dto.chat.ChatAgentConfirmCancelRequest;
 import com.ai.model.dto.chat.ChatRequest;
-import com.ai.model.vo.chat.ChatAgentConfigVO;
-import com.ai.model.vo.chat.ChatAttachmentVO;
 import com.ai.model.vo.chat.ChatConfigVO;
 import com.ai.model.vo.chat.ChatStreamEvent;
 import com.ai.service.AstrBotChatService;
-import com.ai.service.ChatAttachmentService;
 import com.ai.model.entity.User;
 import com.ai.service.UserService;
 import jakarta.annotation.Resource;
@@ -24,7 +22,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -38,20 +35,19 @@ public class ChatController {
     private ChatOrchestrator chatOrchestrator;
 
     @Resource
-    private ChatAgentConfigService chatAgentConfigService;
+    private ChatAgentConfirmService chatAgentConfirmService;
 
     @Resource
     private AstrBotChatService astrBotChatService;
-
-    @Resource
-    private ChatAttachmentService chatAttachmentService;
 
     @Resource
     private UserService userService;
 
     /**
      * 角色聊天接口（POST + body，支持长文本与未来富消息段）。
-     * SSE 事件：Ask → chunk（→ segment_plan）→ done；Agent → tool_call / tool_result / chunk → done。
+     * SSE 事件：Ask → chunk（→ segment_plan）→ done；
+     * Agent → tool_call / tool_result /（confirm_required）→ chunk → done；
+     * mode=agent 且带 confirmToken 时为 L2 确认续跑（设计文档 §8.3）。
      * 需传 conversationId 或 configId（见 ChatRequest）。
      */
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -82,38 +78,30 @@ public class ChatController {
                 .build());
     }
 
-    @GetMapping("/agent/config")
-    public BaseResponse<ChatAgentConfigVO> getAgentConfig() {
-        return ResultUtils.success(chatAgentConfigService.getConfig());
-    }
-
     /**
-     * 聊天图片附件上传：BFF Vision 转述 + 本地 caption 缓存（不再上传 AstrBot）。
+     * Agent L2 确认取消（设计文档 §8.3）：用户放弃 confirm_required 卡片对应的操作。
+     * 令牌一次性作废且仅本人可取消；返回 false 表示令牌已过期/不存在/非本人。
+     * 确认路径不经此端点——按设计走 POST /chat/chat（mode=agent + confirmToken）。
      */
-    @PostMapping("/attachment")
-    public BaseResponse<ChatAttachmentVO> uploadAttachment(@RequestParam("file") MultipartFile file,
-                                                           HttpServletRequest request) {
+    @PostMapping("/agent/confirm/cancel")
+    public BaseResponse<Boolean> cancelAgentConfirm(@RequestBody ChatAgentConfirmCancelRequest cancelRequest,
+                                                    HttpServletRequest request) {
+        if (cancelRequest == null || StrUtil.isBlank(cancelRequest.getConfirmToken())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "confirmToken 不能为空");
+        }
         User loginUser = userService.getLoginUser(request);
         if (loginUser == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "未登录，无法上传附件");
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR, "未登录，无法取消确认");
         }
-        return ResultUtils.success(chatAttachmentService.uploadImage(file));
+        return ResultUtils.success(
+                chatAgentConfirmService.cancel(loginUser.getId(), cancelRequest.getConfirmToken()));
     }
 
     /**
-     * 获取 AstrBot 可用预设/角色列表（替代旧的 /types，本地 PromptTypeEnum 已废弃）。
+     * 获取 AstrBot 可用预设/角色列表（桌宠按关键词挑选角色）。
      */
     @GetMapping("/configs")
     public BaseResponse<List<ChatConfigVO>> getConfigs() {
         return ResultUtils.success(astrBotChatService.listConfigs());
-    }
-
-    /**
-     * @deprecated 聊天角色已全面迁移至 AstrBot 平台预设，请使用 GET /chat/configs
-     */
-    @Deprecated
-    @GetMapping("/types")
-    public BaseResponse<String[]> getPromptTypes() {
-        return ResultUtils.success(new String[0]);
     }
 }

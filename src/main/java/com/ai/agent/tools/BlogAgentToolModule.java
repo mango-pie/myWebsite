@@ -32,9 +32,10 @@ import java.util.Map;
 import static com.ai.agent.registry.AgentToolRegistryBuilder.*;
 
 /**
- * 博客域 Agent 工具：分类/标签只读查询（L0），创建与更新博客草稿（L1）。
- * 所有写操作固定落为草稿状态（status=0），不代用户发布；
- * 成功后附带 navigate UI 动作，引导前端跳到编辑页。
+ * 博客域 Agent 工具：分类/标签只读查询（L0），创建与更新博客草稿（L1），
+ * 发布文章（L2，经确认流后执行）。
+ * 创建/更新写操作固定落为草稿状态（status=0），发布仅在用户确认后进行；
+ * 成功后附带 UI 动作，引导前端刷新列表或跳到编辑页。
  * 仅在 chat 与 blog 模块同时开启时注册。
  */
 @ConditionalOnModule({"chat", "blog"})
@@ -42,6 +43,8 @@ import static com.ai.agent.registry.AgentToolRegistryBuilder.*;
 public class BlogAgentToolModule extends AgentToolModule {
 
     private static final int DRAFT_STATUS = 0;
+
+    private static final int PUBLISHED_STATUS = 1;
 
     @Resource
     private BlogCategoryService blogCategoryService;
@@ -82,6 +85,15 @@ public class BlogAgentToolModule extends AgentToolModule {
                         .required("id")
                         .build(),
                 this::updateBlogDraft);
+
+        // L2 高风险发布：网关会挂起待确认，用户确认后原参数重放执行（设计文档 §8.3）
+        registry.l2("publish_blog_post", "发布指定博客文章（需用户确认后执行）",
+                objectSchema()
+                        .addProperty("id", integerProp("文章 id"))
+                        .required("id")
+                        .build(),
+                this::summarizePublishPost,
+                this::publishBlogPost);
     }
 
     private AgentToolResult listBlogCategories(AgentToolContext ctx, String args) {
@@ -157,6 +169,34 @@ public class BlogAgentToolModule extends AgentToolModule {
                 .path("/blog/edit/" + id)
                 .build();
         return AgentToolResult.ok(mapOf("postId", id), uiAction);
+    }
+
+    private AgentToolResult publishBlogPost(AgentToolContext ctx, String args) {
+        JSONObject json = parseArgs(args);
+        Long id = json.getLong("id");
+        if (id == null || id <= 0) {
+            return AgentToolResult.fail("id 不能为空");
+        }
+        // updateBlogPostStatus 内部校验文章归属，非本人/不存在时抛业务异常，由网关收敛为 fail
+        blogPostService.updateBlogPostStatus(id, PUBLISHED_STATUS, ctx.getUserId());
+        AgentUiAction uiAction = AgentUiAction.builder()
+                .type("refresh")
+                .module("blog_list")
+                .build();
+        return AgentToolResult.ok(mapOf("postId", id, "status", PUBLISHED_STATUS), uiAction);
+    }
+
+    /** 确认摘要：待发布文章标题（查不到时回退为文章 id）。 */
+    private String summarizePublishPost(AgentToolContext ctx, String args) {
+        Long id = parseArgs(args).getLong("id");
+        String title = null;
+        try {
+            BlogPostVO post = id == null ? null : blogPostService.getBlogPostVO(id);
+            title = post == null ? null : post.getTitle();
+        } catch (Exception ignore) {
+            // 摘要查询失败不阻断确认流，回退为 id 展示
+        }
+        return title == null ? "发布文章（id=" + id + "）" : "将发布文章《" + title + "》";
     }
 
     private JSONObject parseArgs(String args) {

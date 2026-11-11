@@ -31,8 +31,8 @@ import java.util.Map;
 import static com.ai.agent.registry.AgentToolRegistryBuilder.*;
 
 /**
- * 学习域 Agent 工具：清单/今日任务查询，创建任务（可加入今日待办，缺省清单为收集箱）
- * 与切换完成状态。写操作成功后附带 refresh UI 动作刷新待办页。
+ * 学习域 Agent 工具：清单/今日任务查询，创建任务（可加入今日待办，缺省清单为收集箱）、
+ * 切换完成状态与删除任务（L2，经确认流后执行）。写操作成功后附带 refresh UI 动作刷新待办页。
  * 仅在 chat 与 study 模块同时开启时注册。
  */
 @ConditionalOnModule({"chat", "study"})
@@ -75,6 +75,15 @@ public class StudyAgentToolModule extends AgentToolModule {
                         .required("id")
                         .build(),
                 this::toggleStudyTask);
+
+        // L2 高风险删除：网关会挂起待确认，用户确认后原参数重放执行（设计文档 §8.3）
+        registry.l2("delete_study_task", "删除指定学习任务（需用户确认后执行）",
+                objectSchema()
+                        .addProperty("id", integerProp("任务 id"))
+                        .required("id")
+                        .build(),
+                this::summarizeDeleteTask,
+                this::deleteStudyTask);
     }
 
     private AgentToolResult listStudyLists(AgentToolContext ctx, String args) {
@@ -156,6 +165,34 @@ public class StudyAgentToolModule extends AgentToolModule {
                 .module("study_today")
                 .build();
         return AgentToolResult.ok(mapOf("taskId", id), uiAction);
+    }
+
+    private AgentToolResult deleteStudyTask(AgentToolContext ctx, String args) {
+        JSONObject json = parseArgs(args);
+        Long id = json.getLong("id");
+        if (id == null || id <= 0) {
+            return AgentToolResult.fail("id 不能为空");
+        }
+        // deleteTask 内部校验任务归属，非本人/不存在时抛业务异常，由网关收敛为 fail
+        studyTaskService.deleteTask(id, ctx.getUserId());
+        AgentUiAction uiAction = AgentUiAction.builder()
+                .type("refresh")
+                .module("study_today")
+                .build();
+        return AgentToolResult.ok(mapOf("taskId", id, "deleted", true), uiAction);
+    }
+
+    /** 确认摘要：待删除任务标题（查不到时回退为任务 id）。 */
+    private String summarizeDeleteTask(AgentToolContext ctx, String args) {
+        Long id = parseArgs(args).getLong("id");
+        String title = null;
+        try {
+            StudyTaskVO task = id == null ? null : studyTaskService.getTaskVO(id, ctx.getUserId());
+            title = task == null ? null : task.getTitle();
+        } catch (Exception ignore) {
+            // 摘要查询失败不阻断确认流，回退为 id 展示
+        }
+        return title == null ? "删除学习任务（id=" + id + "）" : "删除学习任务「" + title + "」";
     }
 
     private Map<String, Object> simplifyTask(StudyTaskVO task) {

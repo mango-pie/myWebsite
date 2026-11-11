@@ -57,12 +57,27 @@ class ChatOrchestratorTest {
         request.setConversationId(1L);
         request.setMessage("加待办");
         request.setMode("agent");
-        when(chatAgentFacade.chat(any(), any(), any(), any(), any()))
+        when(chatAgentFacade.chat(any(), any(), any(), any(), any(), any()))
                 .thenReturn(Flux.just(ChatStreamEvent.done("agent")));
 
         ChatStreamEvent last = orchestrator.chat(request, null).blockLast();
         assertEquals("agent", last.getType());
-        verify(chatAgentFacade).chat(eqLong(1L), isNull(), eqStr("加待办"), isNull(), isNull());
+        verify(chatAgentFacade).chat(eqLong(1L), isNull(), eqStr("加待办"), isNull(), isNull(), isNull());
+    }
+
+    @Test
+    void agentModePassesConfirmTokenToFacade() {
+        ChatRequest request = new ChatRequest();
+        request.setConversationId(1L);
+        request.setMessage("确认发布");
+        request.setMode("agent");
+        request.setConfirmToken("cfm_abc");
+        when(chatAgentFacade.chat(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Flux.just(ChatStreamEvent.done("agent")));
+
+        orchestrator.chat(request, null).blockLast();
+
+        verify(chatAgentFacade).chat(eqLong(1L), isNull(), eqStr("确认发布"), isNull(), isNull(), eqStr("cfm_abc"));
     }
 
     @Test

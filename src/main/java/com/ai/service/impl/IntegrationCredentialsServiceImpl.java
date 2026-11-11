@@ -1,10 +1,8 @@
 package com.ai.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.ai.config.AppDeployProperties;
 import com.ai.config.AstrBotProperties;
 import com.ai.config.ChatImageCaptionProperties;
-import com.ai.config.GptSovitsProperties;
 import com.ai.config.knowledge.KnowledgeAiProperties;
 import com.ai.config.knowledge.KnowledgeJinaProperties;
 import com.ai.config.knowledge.KnowledgeMinioProperties;
@@ -36,19 +34,11 @@ public class IntegrationCredentialsServiceImpl implements IntegrationCredentials
     private ChatImageCaptionProperties chatImageCaptionProperties;
     @Resource
     private AstrBotProperties astrBotProperties;
-    @Resource
-    private GptSovitsProperties gptSovitsProperties;
-    @Resource
-    private AppDeployProperties appDeployProperties;
 
     @Value("${langchain4j.open-ai.agent-chat-model.base-url:https://dashscope.aliyuncs.com/compatible-mode/v1}")
     private String agentBaseUrlYaml;
     @Value("${langchain4j.open-ai.agent-chat-model.api-key:}")
     private String agentApiKeyYaml;
-    @Value("${langchain4j.open-ai.streaming-chat-model.base-url:}")
-    private String codegenBaseUrlYaml;
-    @Value("${langchain4j.open-ai.streaming-chat-model.api-key:}")
-    private String codegenApiKeyYaml;
     @Value("${upload.path:./tmp/uploads/}")
     private String uploadPathYaml;
     @Value("${upload.base-url:http://localhost:8123/api}")
@@ -131,16 +121,6 @@ public class IntegrationCredentialsServiceImpl implements IntegrationCredentials
     }
 
     @Override
-    public String codegenBaseUrl() {
-        return overrideOr("codegen.base_url", codegenBaseUrlYaml);
-    }
-
-    @Override
-    public String codegenApiKey() {
-        return overrideOr("codegen.api_key", codegenApiKeyYaml);
-    }
-
-    @Override
     public String astrBotBaseUrl() {
         return overrideOr("astrbot.base_url", astrBotProperties.getBaseUrl());
     }
@@ -151,32 +131,6 @@ public class IntegrationCredentialsServiceImpl implements IntegrationCredentials
     }
 
     @Override
-    public String ttsBaseUrl() {
-        return overrideOr("tts.base_url", gptSovitsProperties.getBaseUrl());
-    }
-
-    @Override
-    public String ttsRefAudioUploadDir() {
-        String yaml = gptSovitsProperties.getRefAudio() != null
-                ? gptSovitsProperties.getRefAudio().getUploadDir() : "./tmp/tts-ref/";
-        return overrideOr("tts.ref_audio_upload_dir", yaml);
-    }
-
-    @Override
-    public String ttsSeedRefAudioPath() {
-        String yaml = gptSovitsProperties.getSeedVoice() != null
-                ? gptSovitsProperties.getSeedVoice().getRefAudioPath() : "";
-        return overrideOr("tts.seed_voice.ref_audio_path", yaml);
-    }
-
-    @Override
-    public String ttsSeedPromptText() {
-        String yaml = gptSovitsProperties.getSeedVoice() != null
-                ? gptSovitsProperties.getSeedVoice().getPromptText() : "";
-        return overrideOr("tts.seed_voice.prompt_text", yaml);
-    }
-
-    @Override
     public String uploadPath() {
         return overrideOr("upload.path", uploadPathYaml);
     }
@@ -184,39 +138,6 @@ public class IntegrationCredentialsServiceImpl implements IntegrationCredentials
     @Override
     public String uploadBaseUrl() {
         return overrideOr("upload.base_url", uploadBaseUrlYaml);
-    }
-
-    @Override
-    public String appDeployHost() {
-        return overrideOr("app.deploy.host", appDeployProperties.getHost());
-    }
-
-    @Override
-    public String appDeployCodeOutputDir() {
-        String yaml = appDeployProperties.getCodeOutputDir();
-        String override = siteSettingService.findOverride(SiteSettingConstant.MODULE_INTEGRATION, "app.deploy.code_output_dir")
-                .orElse(null);
-        if (StrUtil.isNotBlank(override)) {
-            return override;
-        }
-        if (StrUtil.isNotBlank(yaml)) {
-            return yaml;
-        }
-        return appDeployProperties.resolveCodeOutputDir();
-    }
-
-    @Override
-    public String appDeployCodeDeployDir() {
-        String yaml = appDeployProperties.getCodeDeployDir();
-        String override = siteSettingService.findOverride(SiteSettingConstant.MODULE_INTEGRATION, "app.deploy.code_deploy_dir")
-                .orElse(null);
-        if (StrUtil.isNotBlank(override)) {
-            return override;
-        }
-        if (StrUtil.isNotBlank(yaml)) {
-            return yaml;
-        }
-        return appDeployProperties.resolveCodeDeployDir();
     }
 
     @Override
